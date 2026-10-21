@@ -41,6 +41,23 @@ test('rejects non string header value', () => rejects((c) => (c.endpoints[0].hea
 test('rejects too many endpoints', () =>
   rejects((c) => (c.endpoints = Array.from({ length: LIMITS.maxEndpoints + 1 }, () => ({ method: 'GET', path: '/x' }))), 'endpoints'));
 
+const many = (n) => Array.from({ length: n }, (_, i) => ({ method: 'GET', path: `/x${i}` }));
+test('accepts 50 endpoints', () => {
+  const raw = good();
+  raw.endpoints = many(50);
+  assert.equal(validateConfig(raw).ok, true);
+});
+test('rejects 51 endpoints', () => rejects((c) => (c.endpoints = many(51)), 'endpoints'));
+test('keeps endpoint name and group', () => {
+  const raw = good();
+  raw.endpoints[0] = { method: 'GET', path: '/a', name: 'List', group: 'Shop' };
+  const e = validateConfig(raw).config.endpoints[0];
+  assert.equal(e.name, 'List');
+  assert.equal(e.group, 'Shop');
+});
+test('rejects an endpoint name over 120 characters', () => rejects((c) => (c.endpoints[0].name = 'x'.repeat(121)), 'name'));
+test('rejects a non string body', () => rejects((c) => (c.endpoints[0].body = { a: 1 }), 'body'));
+
 const stress = (c, o) => Object.assign(c, { testType: 'stress', peakUsers: 500, rampUpS: 3000, holdS: 3000, rampDownS: 200, ...o });
 
 test('rejects stress steps that would exceed the user and time limits', () => {

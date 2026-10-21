@@ -1,0 +1,67 @@
+{
+  "info": { "name": "Store API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [{ "key": "baseUrl", "value": "https://api.shop.test" }],
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "abc123", "type": "string" }] },
+  "item": [
+    {
+      "name": "List products",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/products?page=1" },
+        "header": [
+          { "key": "X-Debug", "value": "1", "disabled": true },
+          { "key": "Accept", "value": "application/json" }
+        ]
+      }
+    },
+    {
+      "name": "Shop",
+      "item": [
+        {
+          "name": "Orders",
+          "item": [
+            {
+              "name": "Admin",
+              "item": [
+                {
+                  "name": "Refund",
+                  "request": {
+                    "method": "POST",
+                    "url": "{{baseUrl}}/orders/7/refund",
+                    "body": { "mode": "raw", "raw": "{\"amount\":5}", "options": { "raw": { "language": "json" } } }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Upload invoice",
+              "request": { "method": "POST", "url": "{{baseUrl}}/orders/7/invoice", "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file" }] } }
+            }
+          ]
+        }
+      ]
+    },
+    { "name": "Tenant info", "request": "{{baseUrl}}/{{tenant}}/info" },
+    {
+      "name": "Login form",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/login",
+        "auth": { "type": "basic", "basic": [{ "key": "username", "value": "u" }, { "key": "password", "value": "p" }] },
+        "body": { "mode": "urlencoded", "urlencoded": [{ "key": "a", "value": "1" }, { "key": "b", "value": "2" }] }
+      }
+    },
+    {
+      "name": "Search",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/graphql",
+        "auth": { "type": "apikey", "apikey": [{ "key": "key", "value": "X-Api-Key" }, { "key": "value", "value": "k1" }, { "key": "in", "value": "header" }] },
+        "body": { "mode": "graphql", "graphql": { "query": "{ items { id } }", "variables": "{\"n\":1}" } }
+      }
+    },
+    { "name": "Signed call", "request": { "method": "GET", "url": "{{baseUrl}}/signed", "auth": { "type": "awsv4" } } },
+    { "name": "Public", "request": { "method": "GET", "url": "{{baseUrl}}/public", "auth": { "type": "noauth" } } },
+    { "name": "Status page", "request": { "method": "GET", "url": "https://status.other.test/health" } }
+  ]
+}
