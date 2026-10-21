@@ -74,7 +74,7 @@ test('serves the page and the shared browser modules, nothing else from lib', as
   const page = await call('GET', '/');
   assert.equal(page.status, 200);
   assert.match(page.text, /<title>Perf Studio<\/title>/);
-  for (const f of ['config', 'form', 'stages']) assert.equal((await call('GET', `/lib/${f}.js`)).status, 200);
+  for (const f of ['config', 'form', 'stages', 'importers']) assert.equal((await call('GET', `/lib/${f}.js`)).status, 200);
   assert.equal((await call('GET', '/lib/runner.js')).status, 404);
   assert.equal((await call('GET', '/lib/..%2fserver.mjs')).status, 404);
 });

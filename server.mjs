@@ -15,6 +15,7 @@ const STATIC = {
   '/lib/config.js': ['lib/config.js', 'text/javascript'],
   '/lib/form.js': ['lib/form.js', 'text/javascript'],
   '/lib/stages.js': ['lib/stages.js', 'text/javascript'],
+  '/lib/importers.js': ['lib/importers.js', 'text/javascript'],
 };
 
 export function createServer({ manager, port, root = import.meta.dirname }) {

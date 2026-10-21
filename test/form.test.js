@@ -40,3 +40,34 @@ test('parseHeaders names the bad line', () => {
 test('presetFor returns the soak preset', () => {
   assert.equal(presetFor('soak').holdS, 3600);
 });
+
+import { filterEndpoints, groupEndpoints, toConfigEndpoints } from '../lib/form.js';
+
+const imported = [
+  { id: 'i0', group: 'Shop / Orders', name: 'Refund', method: 'POST', path: '/orders/7/refund', headers: { A: 'b' }, body: '{}', warnings: [], selectable: true },
+  { id: 'i1', group: 'Catalog', name: 'List', method: 'GET', path: '/products', headers: {}, warnings: [], selectable: true },
+  { id: 'i2', group: 'Shop / Orders', name: 'Status', method: 'GET', path: '/health', headers: {}, warnings: ['x'], selectable: false },
+  { id: 'i3', group: 'Catalog', name: 'One', method: 'GET', path: '/orders-archive', headers: {}, warnings: [], selectable: true },
+];
+
+test('filterEndpoints matches group, path, name and method, ignoring case', () => {
+  assert.deepEqual(filterEndpoints(imported, 'ORDERS').map((e) => e.id), ['i0', 'i2', 'i3']);
+  assert.deepEqual(filterEndpoints(imported, 'post').map((e) => e.id), ['i0']);
+  assert.deepEqual(filterEndpoints(imported, 'list').map((e) => e.id), ['i1']);
+  assert.equal(filterEndpoints(imported, '  ').length, 4);
+});
+
+test('groupEndpoints keeps first seen order', () => {
+  assert.deepEqual(groupEndpoints(imported).map((g) => [g.group, g.items.map((e) => e.id)]), [
+    ['Shop / Orders', ['i0', 'i2']],
+    ['Catalog', ['i1', 'i3']],
+  ]);
+});
+
+test('toConfigEndpoints keeps import order, skips non selectable, carries name and group', () => {
+  const got = toConfigEndpoints(imported, new Set(['i3', 'i2', 'i0']));
+  assert.deepEqual(got, [
+    { method: 'POST', path: '/orders/7/refund', headers: { A: 'b' }, body: '{}', name: 'Refund', group: 'Shop / Orders' },
+    { method: 'GET', path: '/orders-archive', headers: {}, name: 'One', group: 'Catalog' },
+  ]);
+});
