@@ -91,5 +91,7 @@ if (isMain) {
   const k6Bin = process.env.K6_BIN || (existsSync('C:\\Program Files\\k6\\k6.exe') ? 'C:\\Program Files\\k6\\k6.exe' : 'k6');
   const port = Number(process.env.PORT || 4173);
   const manager = new RunManager({ runsDir: join(root, 'runs'), k6Bin, root });
+  process.on('exit', () => manager.shutdown());
+  for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(0));
   createServer({ manager, port }).listen(port, '127.0.0.1', () => console.log(`Perf Studio running at http://localhost:${port}`));
 }

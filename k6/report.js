@@ -21,12 +21,13 @@ export function buildReport(data, meta) {
   const peakUsers = m.vus_max.values.max;
   const reqs = m.http_reqs.values;
   const mins = data.state.testRunDurationMs / 60000;
+  const lim = meta.thresholds ?? {}; // the user's own limits win over the generic grades
 
   const cards = [
     {
       q: 'Did the site stay up?',
       big: `${(100 - failPct).toFixed(2)}%`,
-      g: grade(failPct, RATE.failPct),
+      g: lim.errorPct === undefined ? grade(failPct, RATE.failPct) : failPct <= lim.errorPct ? 'good' : 'bad',
       text: failPct === 0 ? 'Every request worked. Nobody saw an error.' : `${failPct.toFixed(2)}% of requests failed. Some visitors saw errors.`,
     },
     {
@@ -38,7 +39,7 @@ export function buildReport(data, meta) {
     {
       q: 'How slow for the unlucky ones?',
       big: `${secs(dur['p(95)'])} sec`,
-      g: grade(dur['p(95)'] / 1000, RATE.p95S),
+      g: lim.p95Ms === undefined ? grade(dur['p(95)'] / 1000, RATE.p95S) : dur['p(95)'] <= lim.p95Ms ? 'good' : 'bad',
       text: '1 in 20 visitors waited longer than this. This is the number to watch.',
     },
     {
@@ -49,11 +50,13 @@ export function buildReport(data, meta) {
     },
   ];
 
-  const overall = worst(cards.map((c) => c.g));
+  let overall = worst(cards.map((c) => c.g));
+  if (meta.passed === false) overall = 'bad'; // k6 says a limit was missed, so never show a green verdict
+  else if (meta.passed === true && overall === 'bad') overall = 'ok';
   const verdict = {
     good: ['Ready', 'The site handled this crowd well.'],
     ok: ['Mostly fine, needs attention', 'The site stayed up, but some visitors had a slow experience.'],
-    bad: ['Not ready', 'Visitors would notice problems at this level of traffic.'],
+    bad: ['Not ready', meta.passed === false ? 'The site missed at least one of the limits you set.' : 'Visitors would notice problems at this level of traffic.'],
   }[overall];
 
   const card = (c) => `

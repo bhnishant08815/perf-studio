@@ -36,7 +36,28 @@ test('rejects empty endpoints', () => rejects((c) => (c.endpoints = []), 'endpoi
 test('rejects path without leading slash', () => rejects((c) => (c.endpoints[0].path = 'login'), 'path'));
 test('rejects peakUsers above the limit', () => rejects((c) => (c.peakUsers = 100000), 'peakUsers'));
 test('rejects unknown testType', () => rejects((c) => (c.testType = 'chaos'), 'testType'));
-test('rejects total duration above the limit', () => rejects((c) => ((c.rampUpS = 5000), (c.holdS = 3000)), 'duration'));
+test('rejects total duration above the limit', () => rejects((c) => ((c.testType = 'load'), (c.rampUpS = 5000), (c.holdS = 3000)), 'duration'));
 test('rejects non string header value', () => rejects((c) => (c.endpoints[0].headers = { A: 1 }), 'headers'));
 test('rejects too many endpoints', () =>
   rejects((c) => (c.endpoints = Array.from({ length: LIMITS.maxEndpoints + 1 }, () => ({ method: 'GET', path: '/x' }))), 'endpoints'));
+
+const stress = (c, o) => Object.assign(c, { testType: 'stress', peakUsers: 500, rampUpS: 3000, holdS: 3000, rampDownS: 200, ...o });
+
+test('rejects stress steps that would exceed the user and time limits', () => {
+  const raw = good();
+  stress(raw, { stressSteps: [5, 5, 5, 5, 5, 5, 5, 5] });
+  const r = validateConfig(raw);
+  assert.equal(r.ok, false);
+  assert.ok(r.errors.some((e) => e.includes('users')), JSON.stringify(r.errors));
+  assert.ok(r.errors.some((e) => e.includes('duration')), JSON.stringify(r.errors));
+});
+
+test('rejects more than 10 stress steps', () => rejects((c) => stress(c, { peakUsers: 5, rampUpS: 5, holdS: 5, rampDownS: 5, stressSteps: Array(11).fill(1) }), 'stressSteps'));
+test('rejects a test with zero total duration', () => rejects((c) => (c.holdS = 0), 'duration'));
+test('rejects negative thinkTimeS', () => rejects((c) => (c.thinkTimeS = -5), 'thinkTimeS'));
+test('rejects non numeric p95Ms', () => rejects((c) => (c.thresholds = { p95Ms: 'abc' }), 'p95Ms'));
+test('rejects errorPct above 100', () => rejects((c) => (c.thresholds = { errorPct: 150 }), 'errorPct'));
+test('rejects expectStatus given as text', () => rejects((c) => (c.endpoints[0].expectStatus = '200'), 'expectStatus'));
+test('rejects a header name with a space', () => rejects((c) => (c.endpoints[0].headers = { 'Bad Header': 'x' }), 'headers'));
+test('rejects an auth header name with a space', () => rejects((c) => (c.auth = { path: '/login', tokenField: 't', header: 'Bad Header' }), 'auth.header'));
+test('rejects an auth method other than POST', () => rejects((c) => (c.auth = { path: '/login', tokenField: 't', method: 'TRACE' }), 'auth.method'));

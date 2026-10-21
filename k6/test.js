@@ -15,7 +15,7 @@ export const options = {
     users: { executor: 'ramping-vus', startVUs: cfg.testType === 'smoke' ? 1 : 0, stages: buildStages(cfg), gracefulRampDown: '10s', gracefulStop: '10s' },
   },
   thresholds: {
-    http_req_failed: [{ threshold: `rate<${cfg.thresholds.errorPct / 100}`, ...abort }],
+    http_req_failed: [{ threshold: `rate<=${cfg.thresholds.errorPct / 100}`, ...abort }],
     http_req_duration: [{ threshold: `p(95)<${cfg.thresholds.p95Ms}`, ...abort }],
   },
 };
@@ -55,18 +55,18 @@ export default function (data) {
 const thresholdOk = (t) => (typeof t === 'object' ? t.ok !== false : t !== false);
 
 export function handleSummary(data) {
-  const dur = data.metrics.http_req_duration.values;
+  const dur = data.metrics.http_req_duration?.values ?? {};
   const passed = Object.values(data.metrics).every((m) => Object.values(m.thresholds ?? {}).every(thresholdOk));
   const summary = {
     passed,
-    requests: data.metrics.http_reqs.values.count,
+    requests: data.metrics.http_reqs?.values.count ?? 0,
     failPct: (data.metrics.http_req_failed?.values.rate ?? 0) * 100,
-    p50Ms: dur.med,
-    p95Ms: dur['p(95)'],
-    maxMs: dur.max,
-    peakUsers: data.metrics.vus_max.values.max,
+    p50Ms: dur.med ?? 0,
+    p95Ms: dur['p(95)'] ?? 0,
+    maxMs: dur.max ?? 0,
+    peakUsers: data.metrics.vus_max?.values.max ?? 0,
   };
-  const meta = { url: cfg.baseUrl, endpoints: cfg.endpoints.map(label), loggedIn: Boolean(cfg.auth) };
+  const meta = { passed, thresholds: cfg.thresholds, url: cfg.baseUrl, endpoints: cfg.endpoints.map(label), loggedIn: Boolean(cfg.auth) };
   return {
     [`${RUN_DIR}/report.html`]: buildReport(data, meta),
     [`${RUN_DIR}/summary.json`]: JSON.stringify(summary),

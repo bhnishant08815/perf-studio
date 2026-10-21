@@ -90,3 +90,12 @@ test('bad login ends as error and says why', { skip }, async () => {
   assert.equal(run.status, 'error');
   assert.match(run.logTail.join('\n'), /login failed/);
 });
+
+test('shutdown stops the active k6 so it cannot keep loading the target', { skip }, async () => {
+  const m = manager();
+  const { id } = m.start(cfg({ holdS: 60 }));
+  await new Promise((r) => setTimeout(r, 3000));
+  m.shutdown();
+  const run = await finished(m, id);
+  assert.equal(run.status, 'stopped');
+});
