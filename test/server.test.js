@@ -70,6 +70,15 @@ test('report path traversal and unknown ids return 404', async () => {
   assert.equal((await call('GET', '/runs/20260101-000000-abcd/report.html')).status, 404);
 });
 
+test('serves the page and the shared browser modules, nothing else from lib', async () => {
+  const page = await call('GET', '/');
+  assert.equal(page.status, 200);
+  assert.match(page.text, /<title>Perf Studio<\/title>/);
+  for (const f of ['config', 'form', 'stages']) assert.equal((await call('GET', `/lib/${f}.js`)).status, 200);
+  assert.equal((await call('GET', '/lib/runner.js')).status, 404);
+  assert.equal((await call('GET', '/lib/..%2fserver.mjs')).status, 404);
+});
+
 test('defaults expose presets and limits', async () => {
   const d = (await call('GET', '/api/defaults')).json();
   assert.equal(d.presets.load.peakUsers, 20);

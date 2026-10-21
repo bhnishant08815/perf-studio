@@ -9,7 +9,15 @@ import { RunManager } from './lib/runner.js';
 const ID_RE = /^[a-z0-9-]+$/;
 const MAX_BODY = 1_000_000;
 
-export function createServer({ manager, port }) {
+// Only these files are ever served as static content (never a path built from the URL).
+const STATIC = {
+  '/': ['ui/index.html', 'text/html; charset=utf-8'],
+  '/lib/config.js': ['lib/config.js', 'text/javascript'],
+  '/lib/form.js': ['lib/form.js', 'text/javascript'],
+  '/lib/stages.js': ['lib/stages.js', 'text/javascript'],
+};
+
+export function createServer({ manager, port, root = import.meta.dirname }) {
   const server = http.createServer((req, res) => {
     const send = (code, body, type = 'application/json') => {
       res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
@@ -23,6 +31,11 @@ export function createServer({ manager, port }) {
       const path = req.url.split('?')[0];
       if (req.method === 'POST' && !(req.headers['content-type'] ?? '').startsWith('application/json')) {
         return send(415, { error: 'Content-Type must be application/json' });
+      }
+
+      if (req.method === 'GET' && Object.hasOwn(STATIC, path)) {
+        const [file, type] = STATIC[path];
+        return send(200, readFileSync(join(root, file)), type);
       }
 
       if (req.method === 'GET' && path === '/api/defaults') {
