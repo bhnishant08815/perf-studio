@@ -1,0 +1,10 @@
+{
+  "name": "perf-studio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "grafana": "docker compose -f grafana/docker-compose.yml up -d"
+  }
+}
