@@ -3,12 +3,29 @@
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, sleep } from 'k6';
+import { Counter } from 'k6/metrics';
 import { buildStages } from '../lib/stages.js';
 import { buildReport } from './report.js';
 
 const cfg = JSON.parse(open(__ENV.CONFIG_PATH));
 const RUN_DIR = __ENV.RUN_DIR;
 const abort = cfg.testType === 'breakpoint' ? { abortOnFail: true, delayAbortEval: '10s' } : {};
+const CLASSES = ['2xx', '3xx', '4xx', '5xx', 'none'];
+const statusClass = new Counter('status_class');
+
+const label = (e) => `${e.method} ${e.path}`;
+const display = (e) => e.name || label(e);
+// Submetric selectors only ever use these generated ids, never user text (names may hold , : { } ").
+const epId = (i) => `e${i}`;
+
+// Rules that always pass. They exist only so k6 reports these submetrics in handleSummary.
+const TRACKING = ['max>=0', 'rate>=0', 'count>=0'];
+const tracking = {};
+cfg.endpoints.forEach((_, i) => {
+  tracking[`http_req_duration{ep:${epId(i)}}`] = ['max>=0'];
+  tracking[`http_req_failed{ep:${epId(i)}}`] = ['rate>=0'];
+  for (const cls of CLASSES) tracking[`status_class{ep:${epId(i)},cls:${cls}}`] = ['count>=0'];
+});
 
 export const options = {
   scenarios: {
@@ -17,10 +34,10 @@ export const options = {
   thresholds: {
     http_req_failed: [{ threshold: `rate<=${cfg.thresholds.errorPct / 100}`, ...abort }],
     http_req_duration: [{ threshold: `p(95)<${cfg.thresholds.p95Ms}`, ...abort }],
+    ...tracking,
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
-
-const label = (e) => `${e.method} ${e.path}`;
 
 export function setup() {
   if (!cfg.auth) return {};
@@ -39,34 +56,73 @@ export function setup() {
   return { token };
 }
 
+const classOf = (status) => (status >= 200 && status < 600 ? `${Math.floor(status / 100)}xx` : 'none');
+
 export default function (data) {
-  for (const e of cfg.endpoints) {
+  cfg.endpoints.forEach((e, i) => {
     const headers = { ...e.headers };
     if (data.token) headers[cfg.auth.header] = `${cfg.auth.prefix}${data.token}`;
-    const body = e.body === undefined || e.body === '' ? null : typeof e.body === 'string' ? e.body : JSON.stringify(e.body);
-    const params = { headers, tags: { name: label(e) } };
+    const body = e.body === undefined || e.body === '' ? null : e.body;
+    const params = { headers, tags: { name: display(e), ep: epId(i) } };
     if (e.expectStatus) params.responseCallback = http.expectedStatuses(e.expectStatus);
     const res = http.request(e.method, cfg.baseUrl + e.path, body, params);
-    check(res, { [`${label(e)} ok`]: (r) => (e.expectStatus ? r.status === e.expectStatus : r.status < 400) });
-  }
+    statusClass.add(1, { ep: epId(i), cls: classOf(res.status) });
+    check(res, { [`${display(e)} ok`]: (r) => (e.expectStatus ? r.status === e.expectStatus : r.status < 400) });
+  });
   sleep(cfg.thinkTimeS);
 }
 
 const thresholdOk = (t) => (typeof t === 'object' ? t.ok !== false : t !== false);
+const ruleOk = (metric, rule) => thresholdOk(metric?.thresholds?.[rule] ?? true);
 
 export function handleSummary(data) {
-  const dur = data.metrics.http_req_duration?.values ?? {};
-  const passed = Object.values(data.metrics).every((m) => Object.values(m.thresholds ?? {}).every(thresholdOk));
+  const m = data.metrics;
+  const dur = m.http_req_duration?.values ?? {};
+  const passed = Object.values(m).every((x) => Object.entries(x.thresholds ?? {}).every(([rule, t]) => TRACKING.includes(rule) || thresholdOk(t)));
+  const failPct = (m.http_req_failed?.values.rate ?? 0) * 100;
+
+  const endpoints = cfg.endpoints.map((e, i) => {
+    const d = m[`http_req_duration{ep:${epId(i)}}`]?.values ?? {};
+    const f = m[`http_req_failed{ep:${epId(i)}}`]?.values ?? {};
+    const requests = (f.passes ?? 0) + (f.fails ?? 0);
+    const statusClasses = Object.fromEntries(CLASSES.map((cls) => [cls, m[`status_class{ep:${epId(i)},cls:${cls}}`]?.values.count ?? 0]));
+    return {
+      id: epId(i),
+      name: display(e),
+      method: e.method,
+      path: e.path,
+      requests,
+      failPct: (f.rate ?? 0) * 100,
+      avgMs: d.avg ?? 0,
+      p50Ms: d.med ?? 0,
+      p90Ms: d['p(90)'] ?? 0,
+      p95Ms: d['p(95)'] ?? 0,
+      p99Ms: d['p(99)'] ?? 0,
+      maxMs: d.max ?? 0,
+      statusClasses,
+    };
+  });
+
   const summary = {
     passed,
-    requests: data.metrics.http_reqs?.values.count ?? 0,
-    failPct: (data.metrics.http_req_failed?.values.rate ?? 0) * 100,
+    requests: m.http_reqs?.values.count ?? 0,
+    failPct,
     p50Ms: dur.med ?? 0,
     p95Ms: dur['p(95)'] ?? 0,
     maxMs: dur.max ?? 0,
-    peakUsers: data.metrics.vus_max?.values.max ?? 0,
+    peakUsers: m.vus_max?.values.max ?? 0,
+    checksPassPct: (m.checks?.values.rate ?? 0) * 100,
+    iterations: m.iterations?.values.count ?? 0,
+    durationS: data.state.testRunDurationMs / 1000,
+    dataReceivedBytes: m.data_received?.values.count ?? 0,
+    dataSentBytes: m.data_sent?.values.count ?? 0,
+    endpoints,
+    limits: [
+      { what: 'p95', limit: cfg.thresholds.p95Ms, actual: dur['p(95)'] ?? 0, ok: ruleOk(m.http_req_duration, `p(95)<${cfg.thresholds.p95Ms}`) },
+      { what: 'errors', limit: cfg.thresholds.errorPct, actual: failPct, ok: ruleOk(m.http_req_failed, `rate<=${cfg.thresholds.errorPct / 100}`) },
+    ],
   };
-  const meta = { passed, thresholds: cfg.thresholds, url: cfg.baseUrl, endpoints: cfg.endpoints.map(label), loggedIn: Boolean(cfg.auth) };
+  const meta = { passed, thresholds: cfg.thresholds, url: cfg.baseUrl, endpoints: cfg.endpoints.map(display), loggedIn: Boolean(cfg.auth) };
   return {
     [`${RUN_DIR}/report.html`]: buildReport(data, meta),
     [`${RUN_DIR}/summary.json`]: JSON.stringify(summary),

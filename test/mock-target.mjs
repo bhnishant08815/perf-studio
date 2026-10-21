@@ -8,6 +8,8 @@ export function startMock() {
       res.end(JSON.stringify(body));
     };
     if (req.url === '/ok') return send(200, { items: [] });
+    if (req.url === '/fail') return send(500, { error: 'boom' });
+    if (req.url === '/notfound') return send(404, {});
     if (req.url === '/slow') return void setTimeout(() => send(200, { slow: true }), 300);
     if (req.url === '/secure') return req.headers.authorization === 'Bearer t1' ? send(200, { ok: true }) : send(401, {});
     if (req.url === '/login' && req.method === 'POST') {

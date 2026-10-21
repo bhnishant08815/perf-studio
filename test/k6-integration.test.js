@@ -84,3 +84,30 @@ test('bad login aborts', { skip }, async () => {
   assert.notEqual(r.code, 0);
   assert.match(r.out, /login failed/);
 });
+
+test('per endpoint metrics, status classes and limits', { skip }, async () => {
+  const odd = 'GET /search?q=a,b {x}: "y"';
+  const r = await runK6({
+    endpoints: [
+      { method: 'GET', path: '/ok', name: odd },
+      { method: 'GET', path: '/fail' },
+      { method: 'GET', path: '/notfound' },
+    ],
+    thresholds: { p95Ms: 5000, errorPct: 100 },
+  });
+  assert.equal(r.code, 0, r.out);
+  const [ok, fail, missing] = r.summary.endpoints;
+  assert.equal(r.summary.endpoints.length, 3);
+  assert.equal(ok.name, odd);
+  assert.equal(fail.name, 'GET /fail');
+  assert.ok(ok.requests > 0);
+  assert.ok(ok.statusClasses['2xx'] > 0);
+  assert.equal(ok.failPct, 0);
+  assert.equal(fail.statusClasses['5xx'], fail.requests);
+  assert.equal(fail.failPct, 100);
+  assert.equal(missing.statusClasses['4xx'], missing.requests);
+  for (const e of r.summary.endpoints) for (const k of ['avgMs', 'p50Ms', 'p90Ms', 'p95Ms', 'p99Ms', 'maxMs']) assert.equal(typeof e[k], 'number', `${e.name} ${k}`);
+  assert.deepEqual(r.summary.limits.map((l) => [l.what, l.ok]), [['p95', true], ['errors', true]]);
+  assert.equal(typeof r.summary.checksPassPct, 'number');
+  assert.ok(r.summary.iterations > 0 && r.summary.durationS > 0 && r.summary.dataReceivedBytes > 0);
+});
