@@ -1,0 +1,58 @@
+{
+  "data": [
+    {
+      "type": "metrics",
+      "id": "http_req_failed",
+      "attributes": {
+        "type": "rate",
+        "contains": "default",
+        "tainted": false,
+        "sample": {
+          "rate": 0.5
+        }
+      }
+    },
+    {
+      "type": "metrics",
+      "id": "vus",
+      "attributes": {
+        "type": "gauge",
+        "contains": "default",
+        "tainted": null,
+        "sample": {
+          "value": 3
+        }
+      }
+    },
+    {
+      "type": "metrics",
+      "id": "http_reqs",
+      "attributes": {
+        "type": "counter",
+        "contains": "default",
+        "tainted": null,
+        "sample": {
+          "count": 240,
+          "rate": 22.066921156499752
+        }
+      }
+    },
+    {
+      "type": "metrics",
+      "id": "http_req_duration",
+      "attributes": {
+        "type": "trend",
+        "contains": "time",
+        "tainted": false,
+        "sample": {
+          "avg": 1.8839749999999997,
+          "max": 26.8971,
+          "med": 1.3984,
+          "min": 0.5095,
+          "p(90)": 2.741059999999999,
+          "p(95)": 3.709999999999997
+        }
+      }
+    }
+  ]
+}

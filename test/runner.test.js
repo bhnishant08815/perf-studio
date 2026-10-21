@@ -65,6 +65,15 @@ test('a smoke run ends passed with a summary', { skip }, async () => {
   assert.ok(run.summary.requests > 0);
 });
 
+test('a run records a timeline every 5 seconds and saves it', { skip }, async () => {
+  const m = manager();
+  const { id } = m.start(cfg({ holdS: 12 }));
+  const run = await finished(m, id);
+  assert.ok(run.timeline.length >= 2, JSON.stringify(run.timeline));
+  assert.ok(run.timeline.every((p) => typeof p.t === 'number' && typeof p.rps === 'number'));
+  assert.ok(existsSync(join(m.runsDir, id, 'timeline.json')));
+});
+
 test('second start while running is BUSY, stop on a finished run is false', { skip }, async () => {
   const m = manager();
   const { id } = m.start(cfg());
