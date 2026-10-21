@@ -5,6 +5,7 @@ import exec from 'k6/execution';
 import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import { buildStages } from '../lib/stages.js';
+import { maskQuery } from '../lib/config.js';
 
 const cfg = JSON.parse(open(__ENV.CONFIG_PATH));
 const RUN_DIR = __ENV.RUN_DIR;
@@ -12,7 +13,8 @@ const abort = cfg.testType === 'breakpoint' ? { abortOnFail: true, delayAbortEva
 const CLASSES = ['2xx', '3xx', '4xx', '5xx', 'none'];
 const statusClass = new Counter('status_class');
 
-const label = (e) => `${e.method} ${e.path}`;
+// Query values may hold API keys; names end up in the report and in Grafana, so mask them.
+const label = (e) => `${e.method} ${maskQuery(e.path)}`;
 const display = (e) => e.name || label(e);
 // Submetric selectors only ever use these generated ids, never user text (names may hold , : { } ").
 const epId = (i) => `e${i}`;

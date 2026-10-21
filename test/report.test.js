@@ -132,3 +132,11 @@ test('status legend lists only the answers that happened', () => {
 test('report has an inline favicon so the browser does not ask the server', () => {
   assert.match(buildReport({ run: run(), summary: summary(), timeline, previous: undefined }), /<link rel="icon" href="data:,">/);
 });
+
+test('query values in paths never reach the report', () => {
+  const s = summary();
+  s.endpoints[0].path = '/s?api_key=SECRET123';
+  const html = buildReport({ run: run(), summary: s, timeline, previous: undefined });
+  assert.ok(!html.includes('SECRET123'));
+  assert.ok(html.includes('/s?api_key=***'));
+});

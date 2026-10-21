@@ -145,3 +145,39 @@ test('unknown json is rejected with a clear message', () => {
     message: 'Unsupported file. Use a Postman collection, OpenAPI 3 or Swagger 2 JSON file, or a list of {method, path}.',
   });
 });
+
+const pm = (request, variable = []) => importCollection(JSON.stringify({ info: { name: 'T', schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json' }, variable, item: [{ name: 'r', request }] })).endpoints[0];
+
+test('postman url object without raw is rebuilt from host, path and query', () => {
+  const e = pm({ method: 'GET', url: { protocol: 'https', host: ['api', 'x', 'test'], path: ['users', '1'], query: [{ key: 'active', value: 'true' }, { key: 'off', value: '1', disabled: true }] } });
+  assert.equal(e.path, '/users/1?active=true');
+});
+
+test('a leading unresolved {{variable}} is treated as the website address, not part of the path', () => {
+  const e = pm({ method: 'GET', url: '{{baseUrl}}/users' });
+  assert.equal(e.path, '/users');
+  assert.ok(e.warnings.includes('Starts with {{baseUrl}}, which has no value. Enter the website address yourself.'));
+  assert.equal(e.selectable, true);
+});
+
+test('methods the tool cannot send are shown but not selectable', () => {
+  const e = pm({ method: 'HEAD', url: 'https://x.test/a' });
+  assert.equal(e.selectable, false);
+  assert.ok(e.warnings.includes('Method HEAD is not supported'));
+});
+
+test('names and groups are cut to 120 characters', () => {
+  const r = importCollection(JSON.stringify([{ method: 'GET', path: '/a', name: 'n'.repeat(130), group: 'g'.repeat(130) }]));
+  assert.equal(r.endpoints[0].name.length, 120);
+  assert.equal(r.endpoints[0].group.length, 120);
+});
+
+test('openapi server variables use their defaults', () => {
+  const r = importCollection(JSON.stringify({ openapi: '3.0.0', info: { title: 'V' }, servers: [{ url: 'https://{region}.api.test/{v}', variables: { region: { default: 'eu' }, v: { default: 'v2' } } }], paths: { '/a': { get: {} } } }));
+  assert.equal(r.baseUrl, 'https://eu.api.test/v2');
+});
+
+test('plain list names made from the path hide query values', () => {
+  const r = importCollection('[{"method":"GET","path":"/s?api_key=SECRET123"}]');
+  assert.ok(!r.endpoints[0].name.includes('SECRET123'), r.endpoints[0].name);
+});

@@ -63,6 +63,17 @@ test('a smoke run ends passed with a summary', { skip }, async () => {
   const run = await finished(m, id);
   assert.equal(run.status, 'passed', run.logTail.join('\n'));
   assert.ok(run.summary.requests > 0);
+  assert.equal(run.hasReport, true);
+});
+
+test('a stop before k6 is ready leaves no report and the run says so', { skip }, async () => {
+  const m = manager();
+  const { id } = m.start(cfg({ holdS: 30 }));
+  await m.stop(id);
+  const run = await finished(m, id);
+  assert.equal(run.status, 'stopped');
+  assert.equal(run.hasReport, false);
+  assert.equal(m.reportPath(id), undefined);
 });
 
 test('a run records a timeline every 5 seconds and saves it', { skip }, async () => {

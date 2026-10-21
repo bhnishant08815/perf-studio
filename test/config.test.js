@@ -78,3 +78,10 @@ test('rejects expectStatus given as text', () => rejects((c) => (c.endpoints[0].
 test('rejects a header name with a space', () => rejects((c) => (c.endpoints[0].headers = { 'Bad Header': 'x' }), 'headers'));
 test('rejects an auth header name with a space', () => rejects((c) => (c.auth = { path: '/login', tokenField: 't', header: 'Bad Header' }), 'auth.header'));
 test('rejects an auth method other than POST', () => rejects((c) => (c.auth = { path: '/login', tokenField: 't', method: 'TRACE' }), 'auth.method'));
+
+import { maskQuery } from '../lib/config.js';
+test('maskQuery hides every query value and keeps the names', () => {
+  assert.equal(maskQuery('/s?api_key=SECRET&page=2'), '/s?api_key=***&page=***');
+  assert.equal(maskQuery('/plain/path'), '/plain/path');
+  assert.equal(maskQuery('/s?flag'), '/s?flag');
+});
