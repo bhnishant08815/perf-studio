@@ -149,6 +149,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 <section id="status" hidden aria-live="polite" style="margin-top:16px">
   <h2>Current test</h2>
   <p><span class="pill" id="stState"></span> <span id="stText"></span></p>
+  <div id="stChart" class="grid" style="align-items:start"></div>
   <p id="stLinks"></p>
   <details><summary>Technical details</summary><pre id="stLog"></pre></details>
 </section>
@@ -164,6 +165,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 <script type="module">
 import { describeShape, filterEndpoints, fmtDuration, groupEndpoints, parseHeaders, presetFor, toConfigEndpoints } from '/lib/form.js';
 import { importCollection } from '/lib/importers.js';
+import { CHART_CSS, lineChart } from '/lib/charts.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => {
@@ -420,6 +422,13 @@ function follow(id) {
     $('stState').className = `pill ${run.status}`;
     $('stText').textContent = running ? `${fmtDuration(Math.round((Date.now() - Date.parse(run.startedAt)) / 1000))} so far` : STATUS_TEXT[run.status];
     $('stLog').textContent = run.logTail.join('\n');
+    const tl = run.timeline ?? [];
+    // Built by our own chart code with every label escaped, so innerHTML is safe here.
+    const fig = (title, svg) => `<figure style="margin:0"><figcaption style="font-weight:600;font-size:14px">${title}</figcaption>${svg}</figure>`;
+    $('stChart').innerHTML = tl.length
+      ? fig('Requests per second', lineChart({ title: 'Requests per second', series: [{ label: 'Requests per second', points: tl.map((p) => [p.t, p.rps]) }], formatY: (v) => v.toFixed(1), width: 420, height: 180 }))
+        + fig('Average response time', lineChart({ title: 'Average response time', series: [{ label: 'Average', points: tl.map((p) => [p.t, p.avgMs]) }], formatY: (v) => `${Math.round(v)} ms`, width: 420, height: 180 }))
+      : '';
     $('run').disabled = running;
     $('stop').disabled = !running;
     const links = [];
@@ -446,6 +455,7 @@ async function loadHistory() {
 }
 
 // ---- start ----
+document.head.append(el('style', { textContent: CHART_CSS }));
 defaults = await (await fetch('/api/defaults')).json();
 renderTypes();
 addEndpoint({ isDefault: true });

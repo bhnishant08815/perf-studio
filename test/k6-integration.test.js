@@ -45,20 +45,18 @@ async function runK6(overrides) {
   };
 }
 
-test('smoke run writes report and summary', { skip }, async () => {
+test('smoke run writes the summary', { skip }, async () => {
   const r = await runK6({ endpoints: [{ method: 'GET', path: '/ok' }] });
   assert.equal(r.code, 0, r.out);
   assert.ok(r.summary.requests > 0);
   assert.equal(r.summary.failPct, 0);
   assert.equal(r.summary.passed, true);
-  assert.match(readFileSync(join(r.dir, 'report.html'), 'utf8'), /Website Load Test Report/);
 });
 
 test('impossible threshold marks run failed', { skip }, async () => {
   const r = await runK6({ endpoints: [{ method: 'GET', path: '/slow' }], thresholds: { p95Ms: 1, errorPct: 1 } });
   assert.equal(r.code, 99, r.out);
   assert.equal(r.summary.passed, false);
-  assert.match(readFileSync(join(r.dir, 'report.html'), 'utf8'), /<h2>Not ready<\/h2>/);
 });
 
 test('errorPct 0 passes when nothing fails', { skip }, async () => {

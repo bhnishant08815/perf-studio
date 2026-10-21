@@ -1,11 +1,10 @@
 // One generic k6 script driven by the UI. Reads a validated config (lib/config.js) from CONFIG_PATH
-// and writes report.html and summary.json into RUN_DIR when the run ends.
+// and writes summary.json into RUN_DIR when the run ends (Node builds report.html from it).
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, sleep } from 'k6';
 import { Counter } from 'k6/metrics';
 import { buildStages } from '../lib/stages.js';
-import { buildReport } from './report.js';
 
 const cfg = JSON.parse(open(__ENV.CONFIG_PATH));
 const RUN_DIR = __ENV.RUN_DIR;
@@ -122,9 +121,7 @@ export function handleSummary(data) {
       { what: 'errors', limit: cfg.thresholds.errorPct, actual: failPct, ok: ruleOk(m.http_req_failed, `rate<=${cfg.thresholds.errorPct / 100}`) },
     ],
   };
-  const meta = { passed, thresholds: cfg.thresholds, url: cfg.baseUrl, endpoints: cfg.endpoints.map(display), loggedIn: Boolean(cfg.auth) };
   return {
-    [`${RUN_DIR}/report.html`]: buildReport(data, meta),
     [`${RUN_DIR}/summary.json`]: JSON.stringify(summary),
     stdout: `\nResult: ${passed ? 'PASS' : 'FAIL'}\nRequests: ${summary.requests}, failed ${summary.failPct.toFixed(2)}%\nSlowest 1 in 20: ${Math.round(summary.p95Ms)} ms\n`,
   };

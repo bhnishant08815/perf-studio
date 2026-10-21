@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildK6Args, RunManager } from '../lib/runner.js';
@@ -72,6 +72,16 @@ test('a run records a timeline every 5 seconds and saves it', { skip }, async ()
   assert.ok(run.timeline.length >= 2, JSON.stringify(run.timeline));
   assert.ok(run.timeline.every((p) => typeof p.t === 'number' && typeof p.rps === 'number'));
   assert.ok(existsSync(join(m.runsDir, id, 'timeline.json')));
+});
+
+test('the runner builds the detailed report after k6 exits', { skip }, async () => {
+  const m = manager();
+  const { id } = m.start(cfg({ holdS: 6, endpoints: [{ method: 'GET', path: '/ok', name: 'Home' }, { method: 'GET', path: '/fail' }] }));
+  await finished(m, id);
+  const html = readFileSync(m.reportPath(id), 'utf8');
+  assert.match(html, /Per page or API/);
+  assert.match(html, /Over time/);
+  assert.equal(html.split('<tr class="ep-row">').length - 1, 2);
 });
 
 test('second start while running is BUSY, stop on a finished run is false', { skip }, async () => {
