@@ -2,7 +2,7 @@
   "uid": "perf-studio",
   "title": "Perf Studio",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
@@ -260,6 +260,99 @@
           },
           "expr": "sum(rate(k6_data_received_total{testid=~\"$testid\"}[30s]))",
           "legendFormat": "Received",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Slow 1 in 20, per page or API",
+      "description": "Each line is one page or API call. Lower is better.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (name) (k6_http_req_duration_p95{testid=~\"$testid\"})",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Failures per page or API",
+      "description": "Share of requests that failed, per call. 0% is ideal.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 9
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "avg by (name) (k6_http_req_failed_rate{testid=~\"$testid\"})",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ]
