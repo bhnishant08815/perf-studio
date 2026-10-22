@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { barChart, lineChart, stackedBar } from '../lib/charts.js';
+import { barChart, lineChart, stackedBar, CHART_CSS } from '../lib/charts.js';
 
 const fmt = (v) => `${v} ms`;
 
@@ -61,4 +61,10 @@ test('axis ticks are round numbers', () => {
   assert.deepEqual(ys, [0, 50, 100, 150]);
   const xs = [...svg.matchAll(/text-anchor="middle">([\d:]+)</g)].map((m) => m[1]);
   assert.deepEqual(xs, ['0:00', '0:30', '1:00', '1:30']);
+});
+
+test('chart colours come from theme tokens', () => {
+  assert.ok(CHART_CSS.includes('var(--live'));
+  assert.ok(CHART_CSS.includes('var(--critical'));
+  assert.ok(!CHART_CSS.includes('#2a78d6'));
 });
