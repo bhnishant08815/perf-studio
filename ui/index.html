@@ -49,8 +49,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .shape{background:var(--surface-muted);border-radius:6px;padding:10px 12px;margin:12px 0 0}
 .actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 #errors{color:var(--critical);margin:12px 0 0;padding-left:20px}
-.pill{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid currentColor;border-radius:6px;font-size:12px;font-weight:600}
-.passed{color:var(--healthy)}.failed,.error{color:var(--critical)}.stopped,.running{color:var(--warning)}
+#runSummary{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:16px 0 0;font-size:14px}
+#runSummary dt{color:var(--text-2)}#runSummary dd{margin:0}
+.crit{color:var(--critical);font-weight:600}
+#stPhase{margin:4px 0 0}
+#stMetrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:12px 0}
+#stMetrics .metric{min-height:128px;padding:12px;border:1px solid var(--border);border-radius:8px}
+.metric-name{font-size:13px;font-weight:600}
+.metric.is-critical{border-color:var(--critical)}.metric.is-critical .metric-value{color:var(--critical)}
 pre{white-space:pre-wrap;font:12px/1.5 var(--mono);background:var(--surface-muted);padding:8px;border-radius:6px;max-height:200px;overflow:auto}
 details{margin-top:12px}summary{cursor:pointer;font-weight:600}
 #adv{margin-top:0}
@@ -236,6 +242,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
   </section>
 
   <ul id="ready" aria-live="polite"></ul>
+  <dl id="runSummary" class="panel" aria-live="polite" aria-label="Run summary"></dl>
   <label class="check"><input type="checkbox" id="own"> I own this system or have permission to load test it</label>
   <div class="actions">
     <button class="btn-primary" id="run" type="submit">Run test</button>
@@ -248,16 +255,19 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
 
 <section id="status" class="panel" hidden aria-live="polite" style="margin-top:16px">
   <h2>Current test</h2>
-  <p><span class="pill" id="stState"></span> <span id="stText"></span></p>
+  <p><span class="badge" id="stState"></span> <span id="stText"></span></p>
+  <p id="stPhase" class="hint" title="Estimated from your settings" hidden></p>
+  <div id="stMetrics"></div>
   <ul id="stWhy" class="hint"></ul>
   <div id="stChart" class="grid" style="align-items:start"></div>
+  <p class="hint">Charts use 5 second windows.</p>
   <p id="stLinks"></p>
   <details><summary>Technical details</summary><pre id="stLog"></pre></details>
 </section>
 
 <section class="panel">
   <h2>Past tests</h2>
-  <div style="overflow-x:auto"><table class="data"><thead><tr><th>Started</th><th>Name</th><th>Result</th><th>Slowest 1 in 20</th><th>Report</th></tr></thead><tbody id="history"></tbody></table></div>
+  <div style="overflow-x:auto"><table class="data"><thead><tr><th>Started</th><th>Name</th><th>Result</th><th class="num">Slowest 1 in 20</th><th>Report</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
 
 <details id="help" class="panel">
@@ -274,7 +284,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
 </main>
 
 <script type="module">
-import { describeShape, filterEndpoints, fmtDuration, groupEndpoints, parseHeaders, presetFor, toConfigEndpoints } from '/lib/form.js';
+import { describeShape, filterEndpoints, fmtDuration, groupEndpoints, latestMetrics, parseHeaders, plannedPhase, presetFor, toConfigEndpoints } from '/lib/form.js';
 import { importCollection } from '/lib/importers.js';
 import { explainRun } from '/lib/explain.js';
 import { allPlaceholders, fillValues } from '/lib/fill.js';
@@ -535,6 +545,7 @@ function refreshSetup() {
   } catch (e) { // for example a header line typed halfway: say so instead of throwing on every keystroke
     $('ready').replaceChildren(el('li', { className: 'stop' }, el('span', {}, e.message)));
     $('run').disabled = true;
+    renderSummary(null);
     return;
   }
   renderValues(allPlaceholders(calls));
@@ -553,6 +564,21 @@ function refreshSetup() {
     return li;
   }));
   $('run').disabled = isRunning || issues.some((i) => i.level === 'stop');
+  renderSummary(calls);
+}
+
+// What Run will do, in one glance, right above the button. calls is null when the calls cannot be read.
+function renderSummary(calls) {
+  if (!calls) return $('runSummary').replaceChildren(el('dt', {}, 'Summary'), el('dd', {}, 'Fix the highlighted problem to see the summary'));
+  const stops = $('ready').querySelectorAll('li.stop').length;
+  const rows = [
+    ['Calls selected', String(calls.length)],
+    ['Kind of test', TYPES[testType][0]],
+    ['Length and people', $('shape').textContent], // the describeShape line refreshShape wrote
+    ['Limits', limitsText()],
+    ['Blocking issues', stops ? el('span', { className: 'crit' }, `${stops} blocking, see the list above`) : 'none'],
+  ];
+  $('runSummary').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)]));
 }
 
 // ---- test type and shape ----
@@ -572,6 +598,7 @@ const refreshShape = () => {
   const shape = describeShape(shapeInput());
   $('shape').textContent = shape;
   $('advLine').textContent = `${shape.replace(/\.$/, '')}. ${limitsText()}`;
+  refreshSetup(); // keeps the run summary in step with the type, people, time and limits
 };
 
 function pickType(t) {
@@ -649,8 +676,16 @@ function follow(id) {
     current = run;
     const running = run.status === 'running';
     $('stState').textContent = STATUS[run.status];
-    $('stState').className = `pill ${run.status}`;
-    $('stText').textContent = running ? `${fmtDuration(Math.round((Date.now() - Date.parse(run.startedAt)) / 1000))} so far` : STATUS_TEXT[run.status];
+    $('stState').className = `badge is-${run.status}`;
+    $('hdrTest').textContent = run.name;
+    const elapsed = Math.max(0, (Date.now() - Date.parse(run.startedAt)) / 1000);
+    const elapsedS = Number.isFinite(elapsed) ? elapsed : 0; // plannedPhase reads NaN as Finishing
+    $('stText').textContent = running ? `${fmtDuration(Math.round(elapsedS))} so far` : STATUS_TEXT[run.status];
+    // Breakpoint can stop early, so its plan says little about where the run really is: elapsed only.
+    const phase = running && run.config.testType !== 'breakpoint' ? plannedPhase(run.config, elapsedS) : null;
+    $('stPhase').hidden = !phase;
+    $('stPhase').textContent = phase ? `Planned phase: ${phase.label} (stage ${phase.stage} of ${phase.stages}). Estimated from your settings, not measured.` : '';
+    renderMetrics(run);
     // A finished run with results gets the same plain explanation as the report's top box.
     const why = !running && run.summary && run.status !== 'error' ? explainRun({ cfg: run.config, summary: run.summary, stopped: run.status === 'stopped' }) : null;
     if (why) $('stText').textContent = why.headline;
@@ -659,9 +694,14 @@ function follow(id) {
     const tl = run.timeline ?? [];
     // Built by our own chart code with every label escaped, so innerHTML is safe here.
     const fig = (title, svg) => `<figure style="margin:0"><figcaption style="font-weight:600;font-size:14px">${title}</figcaption>${svg}</figure>`;
+    const pts = (key) => tl.map((p) => [p.t, p[key]]);
+    const lim = run.config.thresholds ?? {};
+    const limitLine = (v) => (v == null ? undefined : { value: v, label: 'Your limit' });
+    const timeTitle = `Average response time per 5 second window${lim.p95Ms == null ? '' : ', the limit is for the slow 1 in 20'}`;
     $('stChart').innerHTML = tl.length
-      ? fig('Requests per second', lineChart({ title: 'Requests per second', series: [{ label: 'Requests per second', points: tl.map((p) => [p.t, p.rps]) }], formatY: (v) => v.toFixed(1), width: 420, height: 180 }))
-        + fig('Average response time', lineChart({ title: 'Average response time', series: [{ label: 'Average', points: tl.map((p) => [p.t, p.avgMs]) }], formatY: (v) => `${Math.round(v)} ms`, width: 420, height: 180 }))
+      ? fig('Requests per second', lineChart({ title: 'Requests per second', series: [{ label: 'Requests per second', points: pts('rps') }], formatY: (v) => v.toFixed(1), width: 420, height: 180 }))
+        + fig(timeTitle, lineChart({ title: timeTitle, series: [{ label: 'Average in each 5 seconds', points: pts('avgMs') }, { label: 'Slow 1 in 20, so far', points: pts('p95SoFarMs') }], formatY: (v) => `${Math.round(v)} ms`, limit: limitLine(lim.p95Ms), width: 420, height: 180 }))
+        + fig('Share of requests that failed', lineChart({ title: 'Share of requests that failed', series: [{ label: 'Failed', points: pts('failPct') }], formatY: (v) => `${v.toFixed(1)}%`, limit: limitLine(lim.errorPct), width: 420, height: 180 }))
       : '';
     $('stop').disabled = !running; // before refreshSetup, so nothing it does can leave a running test without a Stop button
     isRunning = running;
@@ -676,13 +716,42 @@ function follow(id) {
   timer = setInterval(tick, 2000);
 }
 
+// The four live numbers. null means no data yet and shows n/a, never a fake 0.
+function renderMetrics(run) {
+  const m = latestMetrics(run.timeline);
+  const lim = run.config.thresholds ?? {};
+  const fmt = (v, digits) => (v == null ? 'n/a' : v.toFixed(digits));
+  const tile = (name, v, digits, unit, help, extra = [], over = false) => el('div', { className: `metric${over ? ' is-critical' : ''}` },
+    el('span', { className: 'metric-name' }, name),
+    el('span', { className: 'metric-value' }, fmt(v, digits), ...(v == null ? [] : [' ', el('span', { className: 'metric-unit' }, unit)])),
+    el('span', { className: 'metric-help' }, help),
+    ...extra.map((t) => el('span', { className: `metric-help${t === 'Over your limit' ? ' crit' : ''}` }, t)),
+  );
+  const slowOver = lim.p95Ms != null && m.p95SoFarMs != null && m.p95SoFarMs > lim.p95Ms;
+  const failOver = lim.errorPct != null && m.failPct != null && m.failPct > lim.errorPct;
+  $('stMetrics').replaceChildren(
+    tile('People now', m.users, 0, 'people', 'Simulated people using the site right now.'),
+    tile('Requests per second', m.rps, 1, 'req/s', 'Calls sent per second in the last 5 seconds.'),
+    tile('Average response time', m.avgMs, 0, 'ms', 'Average of the last 5 seconds. This is not the slow 1 in 20 (p95) figure.', [
+      `Slow 1 in 20 so far: ${m.p95SoFarMs == null ? 'n/a' : `${Math.round(m.p95SoFarMs)} ms`}`,
+      ...(lim.p95Ms == null ? [] : [`Your limit: ${lim.p95Ms} ms (slow 1 in 20)`]),
+      ...(slowOver ? ['Over your limit'] : []),
+    ], slowOver),
+    tile('Failed requests', m.failPct, 1, '%', 'Share of requests that failed in the last 5 seconds.', [
+      ...(lim.errorPct == null ? [] : [`Your limit: ${lim.errorPct}%`]),
+      ...(failOver ? ['Over your limit'] : []),
+    ], failOver),
+  );
+}
+
 async function loadHistory() {
   const runs = await (await fetch('/api/runs')).json();
-  $('history').replaceChildren(...runs.map((r) => el('tr', {},
+  if (!runs.length) $('history').replaceChildren(el('tr', {}, el('td', { colSpan: 5, className: 'hint' }, 'No tests yet')));
+  else $('history').replaceChildren(...runs.map((r) => el('tr', {},
     el('td', {}, new Date(r.startedAt).toLocaleString()),
     el('td', {}, r.name),
-    el('td', { className: r.status, title: r.status === 'failed' ? 'Open the report to see why' : '' }, STATUS[r.status]),
-    el('td', {}, r.summary ? `${(r.summary.p95Ms / 1000).toFixed(2)} sec` : ''),
+    el('td', { title: r.status === 'failed' ? 'Open the report to see why' : '' }, el('span', { className: `badge is-${r.status}` }, STATUS[r.status])),
+    el('td', { className: 'num' }, r.summary ? `${(r.summary.p95Ms / 1000).toFixed(2)} sec` : ''),
     el('td', {}, r.status === 'running' || r.status === 'error' || r.hasReport === false ? '' : el('a', { href: `/runs/${r.id}/report.html`, target: '_blank' }, 'Open')),
   )));
   const active = runs.find((r) => r.status === 'running');

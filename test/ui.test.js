@@ -37,3 +37,13 @@ test('panel toggle is wired', () => {
   assert.match(tag, /aria-controls="panel"/);
   assert.match(tag, /aria-expanded="false"/);
 });
+
+test('status panel has phase and metric strip', () => {
+  for (const id of ['stPhase', 'stMetrics', 'runSummary']) assert.ok(markup.includes(`id="${id}"`), id);
+});
+
+test('status panel imports the helpers', () => {
+  const imp = script.match(/import \{([^}]*)\} from '\/lib\/form\.js'/)?.[1] ?? '';
+  assert.match(imp, /\bplannedPhase\b/);
+  assert.match(imp, /\blatestMetrics\b/);
+});
