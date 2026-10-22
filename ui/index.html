@@ -6,100 +6,126 @@
 <title>Perf Studio</title>
 <link rel="icon" href="data:,">
 <style>
-:root{--bg:#f6f7f9;--fg:#17181a;--mut:#5b6068;--card:#fff;--line:#d9dde3;--accent:#2457d6;--accent-fg:#fff;--good:#0a7d3c;--bad:#b3261e;--ok:#a35f00}
-@media(prefers-color-scheme:dark){:root{--bg:#121316;--fg:#f1f2f4;--mut:#a3a8b0;--card:#1b1d21;--line:#2c2f35;--accent:#7aa2ff;--accent-fg:#0b1020;--good:#5fd18b;--bad:#ff8a80;--ok:#f0b45a}}
-*{box-sizing:border-box}
-body{margin:0;padding:24px 16px 64px;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif}
-main{max-width:1220px;margin:auto}
-h1{margin:0;font-size:26px}.sub{color:var(--mut);margin:4px 0 24px}
-section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-h2{font-size:17px;margin:0 0 12px}
-label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}
+/* Page rules only; tokens and shared classes come from /lib/theme.js (injected by the script). */
+[hidden]{display:none!important}
+body{padding:0 0 64px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--border)}
+.top h1{margin:0 8px 0 0;font-size:28px;font-weight:600;letter-spacing:-.01em}
+#hdrTest{color:var(--text-2)}
+.top .spacer{flex:1}
+main{max-width:1280px;margin:auto;padding:24px}
+.sub{color:var(--text-2);margin:0 0 24px;max-width:72ch}
+section.panel{margin-bottom:16px}
+h2{font-size:18px;font-weight:600;margin:0 0 12px}
+h3{font-size:15px;font-weight:600;margin:20px 0 4px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 0}
+label+.hint{margin:2px 0 6px}
+label.check{display:flex;gap:8px;align-items:center;font-weight:400}
 input,select,textarea,button{font:inherit;color:inherit}
-input[type=text],input[type=password],input[type=url],input[type=number],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-.pw{position:relative}.pw input{padding-right:42px}
-.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--mut);cursor:pointer}
-.eye:hover{background:var(--line)}
-textarea{min-height:56px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
-.hint{color:var(--mut);font-size:13px;margin:2px 0 0;font-weight:400}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
-.card{position:relative;border:2px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;margin:0;font-weight:400}
-.card:has(input:checked){border-color:var(--accent)}
-.card:has(input:focus-visible){outline:3px solid var(--accent)}
-.card input{position:absolute;opacity:0}
-.card b{display:block}.card span{color:var(--mut);font-size:13px}
-.ep{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px}
-.ep .row{display:grid;grid-template-columns:110px 1fr auto;gap:8px;align-items:end}
-button{padding:9px 16px;border-radius:8px;border:1px solid var(--line);background:var(--card);cursor:pointer}
-button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+input[type=text],input[type=password],input[type=url],input[type=number],select,textarea{width:100%;padding:0 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface)}
+input[type=text],input[type=password],input[type=url],input[type=number],select{height:38px}
+textarea{min-height:64px;padding:8px 10px;font-family:var(--mono);font-size:13px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+input[type=checkbox],input[type=radio]{accent-color:var(--accent);width:16px;height:16px;margin:0}
+a{color:var(--live)}
+code{font-family:var(--mono);font-size:12px}
+button{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 16px;border:1px solid var(--border);border-radius:6px;background:var(--surface);font-weight:500;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{background:var(--surface-muted)}
 button:disabled{opacity:.5;cursor:not-allowed}
-button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.shape{background:var(--bg);border-radius:8px;padding:10px 12px;margin:12px 0 0}
-.actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
-#errors{color:var(--bad);margin:12px 0 0;padding-left:20px}
-.pill{display:inline-block;padding:2px 10px;border-radius:99px;font-weight:600;font-size:14px;border:1px solid currentColor}
-.passed{color:var(--good)}.failed,.error{color:var(--bad)}.stopped,.running{color:var(--ok)}
-table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
-pre{white-space:pre-wrap;font-size:12px;background:var(--bg);padding:8px;border-radius:8px;max-height:200px;overflow:auto}
-details{margin-top:10px}summary{cursor:pointer;font-weight:600}
-#adv{margin-top:0}#adv h3{font-size:15px;margin:16px 0 6px}
-@media(max-width:520px){.ep .row{grid-template-columns:1fr}}
+.pw{position:relative}.pw input{padding-right:42px}
+.eye{position:absolute;right:2px;top:50%;transform:translateY(-50%);width:34px;height:34px;padding:0;border:0;background:transparent;color:var(--text-2)}
+.eye:hover{background:var(--surface-muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 16px;align-items:start}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.card{position:relative;border:1px solid var(--border);border-radius:8px;padding:10px 36px 10px 12px;cursor:pointer;margin:0;font-weight:400;background:var(--surface)}
+.card:hover{background:var(--surface-muted)}
+.card:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card:has(input:checked)::after{content:"\2713";position:absolute;top:8px;right:12px;font-weight:700;color:var(--accent)}
+.card:has(input:focus-visible){outline:2px solid var(--live);outline-offset:2px}
+.card input{position:absolute;opacity:0}
+.card b{display:block;font-weight:600}.card span{color:var(--text-2);font-size:13px}
+.ep{border:1px solid var(--border);border-radius:8px;padding:4px 12px 12px;margin-bottom:8px}
+.ep .row{display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:end}
+.shape{background:var(--surface-muted);border-radius:6px;padding:10px 12px;margin:12px 0 0}
+.actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+#errors{color:var(--critical);margin:12px 0 0;padding-left:20px}
+.pill{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid currentColor;border-radius:6px;font-size:12px;font-weight:600}
+.passed{color:var(--healthy)}.failed,.error{color:var(--critical)}.stopped,.running{color:var(--warning)}
+pre{white-space:pre-wrap;font:12px/1.5 var(--mono);background:var(--surface-muted);padding:8px;border-radius:6px;max-height:200px;overflow:auto}
+details{margin-top:12px}summary{cursor:pointer;font-weight:600}
+#adv{margin-top:0}
+@media(max-width:520px){.ep .row{grid-template-columns:1fr}.top,main{padding-left:16px;padding-right:16px}}
 .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 .layout>*{min-width:0}
-@media(min-width:1000px){.layout{grid-template-columns:320px minmax(0,1fr)}#panel{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto}}
-.drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-weight:600}
+#panel>.panel{margin:0}
+@media(min-width:1000px){.layout{grid-template-columns:320px minmax(0,1fr)}#panel{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}#panelToggle,#panelClose{display:none}}
+@media(max-width:999.98px){#panel{position:fixed;inset:0 auto 0 0;z-index:30;width:min(360px,90vw);overflow:auto;background:var(--canvas);padding:12px;border-right:1px solid var(--border);transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility .2s}#panel.open{transform:none;visibility:visible}#panelClose{margin-bottom:12px}}
+.drop{display:block;border:1px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;font-weight:600;background:var(--surface-muted)}
 .drop.over{border-color:var(--accent)}
 .drop input{display:block;margin:8px auto 0;font-size:13px;max-width:100%}
+#importWarnSum{display:inline-flex;align-items:center;height:24px;padding:0 8px;border:1px solid var(--warning);border-radius:6px;color:var(--warning);font-size:12px}
 .grp{margin-top:12px}.grp-head{display:flex;gap:8px;align-items:center;font-weight:600;font-size:14px;margin:0;list-style:none}
-.grp-head::before{content:"\25B8";width:1em;color:var(--mut)}.grp[open]>.grp-head::before{content:"\25BE"}
+.grp-head::before{content:"\25B8";width:1em;color:var(--text-2)}.grp[open]>.grp-head::before{content:"\25BE"}
 .pick{display:grid;grid-template-columns:auto auto 1fr;gap:6px;align-items:start;font-weight:400;font-size:13px;margin:6px 0 0 4px}
-.pick small{grid-column:3;color:var(--mut);word-break:break-all}
+.pick small{grid-column:3;color:var(--text-2);word-break:break-all}
 .pick.off{opacity:.55}
-.mp{font:600 11px ui-monospace,Consolas,monospace;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
-.warn{color:var(--ok);grid-column:3;font-size:12px}
-.limit{color:var(--bad);font-weight:600}
-.chip{grid-column:3;justify-self:start;font-size:11px;padding:0 6px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}.chip.bad{color:var(--bad);border-color:var(--bad)}
-#checkOut.good{color:var(--good)}#checkOut.bad{color:var(--bad)}
-#ready{list-style:none;margin:12px 0 0;padding:0}#ready li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid var(--ok);padding:6px 10px;margin-bottom:6px;font-size:14px}
-#ready li.stop{border-left-color:var(--bad)}#ready li button{padding:2px 10px}
+.mp{font:600 11px var(--mono);padding:1px 5px;border-radius:4px;border:1px solid var(--border);color:var(--text-2)}
+.pick .warn{color:var(--warning);grid-column:3;font-size:12px}
+.limit{color:var(--critical);font-weight:600}
+.chip{grid-column:3;justify-self:start;font-size:11px;padding:0 6px;border-radius:6px;border:1px solid var(--border);color:var(--text-2)}.chip.bad{color:var(--critical);border-color:var(--critical)}
+#selCount{position:sticky;bottom:0;z-index:1;margin:12px -16px -16px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--border);font-weight:600;font-size:13px}
+#checkOut.good{color:var(--healthy)}#checkOut.bad{color:var(--critical)}
+#ready{list-style:none;margin:16px 0 0;padding:0}#ready li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid var(--warning);background:var(--surface);padding:6px 10px;margin-bottom:6px;font-size:14px}
+#ready li.stop{border-left-color:var(--critical)}#ready li button,.imp button{height:28px;padding:0 10px}
 #valueBoxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 12px}
-.imp{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:14px}
+.imp{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:6px;padding:6px 10px;margin-bottom:6px;font-size:14px}
 .imp span.n{flex:1;min-width:0;overflow-wrap:anywhere}
-.imp button{padding:2px 10px}
+#credBox .callout{margin:0 0 4px}
+#help ul{margin:8px 0 0;padding-left:20px}
 </style>
 </head>
 <body>
+<header class="top">
+  <h1>Perf Studio</h1>
+  <span class="badge">Local: runs on this computer</span>
+  <span id="hdrTest">No test running</span>
+  <span class="spacer"></span>
+  <span id="hdrGrafana" class="badge is-off">Checking live graphs</span>
+  <a href="#help" id="helpLink">Help</a>
+  <button type="button" id="panelToggle" aria-controls="panel" aria-expanded="false">API calls</button>
+</header>
 <main>
-<h1>Perf Studio</h1>
 <p class="sub">See how a website behaves when many people use it at the same time. Fill in the steps, press Run, then read the report.</p>
 
 <div class="layout">
 <aside id="panel" aria-label="Imported API calls">
-  <section>
+  <button type="button" id="panelClose">Close API calls</button>
+  <section class="panel">
     <h2>Import API list</h2>
     <p class="hint">A Postman collection, an OpenAPI 3 or Swagger 2 file (JSON), or a list of {method, path}.</p>
     <label class="drop" id="drop">Choose a file or drop it here<input id="importFile" type="file" accept=".json,application/json"></label>
-    <details><summary>Or paste JSON</summary><textarea id="importText" aria-label="Paste JSON to import"></textarea><button type="button" id="importBtn">Import</button></details>
+    <details><summary>Or paste JSON</summary><textarea id="importText" aria-label="Paste JSON to import"></textarea><div class="actions" style="margin-top:8px"><button type="button" id="importBtn">Import</button></div></details>
     <p id="importInfo" class="hint" aria-live="polite"></p>
     <button type="button" id="reset" hidden>Reset import</button>
     <details id="importWarnBox" hidden><summary id="importWarnSum"></summary><ul id="importWarn" class="hint"></ul></details>
     <div id="pickArea" hidden>
       <label for="search">Search calls</label>
-      <input id="search" type="text" placeholder="Name, address, method or folder">
+      <p class="hint" id="search-help">Type part of a name, address, method or folder to narrow the list.</p>
+      <input id="search" type="text" placeholder="Name, address, method or folder" aria-describedby="search-help">
       <div class="actions" style="margin-top:8px"><button type="button" id="selAll">Select all shown</button><button type="button" id="selSafe">Select safe reads only</button><button type="button" id="selNone">Clear</button></div>
-      <p id="selCount" aria-live="polite"></p>
       <div id="groups"></div>
+      <p id="selCount" aria-live="polite"></p>
     </div>
   </section>
 </aside>
 <div>
 
 <form id="f" novalidate>
-  <section>
+  <section class="panel">
     <h2>Website and calls</h2>
     <label for="baseUrl">Website address</label>
-    <input id="baseUrl" type="url" placeholder="https://example.com" autocomplete="off">
+    <p class="hint" id="baseUrl-help">The start of every address in the test, for example https://test.example.com.</p>
+    <input id="baseUrl" type="url" placeholder="https://example.com" autocomplete="off" aria-describedby="baseUrl-help baseNote">
     <p class="hint" id="baseNote"></p>
     <p class="hint">Pages or API calls that each simulated person will visit, in order.</p>
     <div id="importedEps"></div>
@@ -112,10 +138,12 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     </div>
   </section>
 
-  <section id="credBox">
+  <section id="credBox" class="panel">
     <h2>Credentials (optional)</h2>
+    <p class="callout is-warning">Credentials are saved as plain text in this browser's storage and in the run files on this computer. Use disposable test accounts on non production systems. Hiding a value on screen is not encryption. Fixed credentials chosen here win over any Authorization header an imported call carries.</p>
     <label for="credType">How does the site check who you are?</label>
-    <select id="credType">
+    <p class="hint" id="credType-help">Pick how the site knows which account is calling it.</p>
+    <select id="credType" aria-describedby="credType-help">
       <option value="none">It does not, no sign in needed</option>
       <option value="login">A login call first</option>
       <option value="bearer">A token I already have (Bearer)</option>
@@ -124,88 +152,101 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     </select>
     <div data-cred="login" hidden>
       <label for="loginPath">Login address</label>
-      <input id="loginPath" type="text" placeholder="/api/login">
+      <p class="hint" id="loginPath-help">The address that signs in, called once before the test starts.</p>
+      <input id="loginPath" type="text" placeholder="/api/login" aria-describedby="loginPath-help">
       <label for="loginUser">Email or username</label>
-      <input id="loginUser" type="text" placeholder="test@example.com" autocomplete="off">
+      <p class="hint" id="loginUser-help">The test account name to sign in with.</p>
+      <input id="loginUser" type="text" placeholder="test@example.com" autocomplete="off" aria-describedby="loginUser-help">
       <label for="loginPass">Password</label>
-      <input id="loginPass" type="password" autocomplete="off">
+      <p class="hint" id="loginPass-help">The password of that test account.</p>
+      <input id="loginPass" type="password" autocomplete="off" aria-describedby="loginPass-help">
       <label for="tokenField">Name of the token in the reply</label>
-      <input id="tokenField" type="text" value="access_token">
+      <p class="hint" id="tokenField-help">Where the login reply puts the pass that later calls send back.</p>
+      <input id="tokenField" type="text" value="access_token" aria-describedby="tokenField-help">
       <details>
         <summary>Advanced: field names and extra details</summary>
         <label for="loginUserField">Field name for the email or username</label>
-        <input id="loginUserField" type="text" value="email" autocomplete="off">
+        <p class="hint" id="loginUserField-help">What the login call names the account box, often email or username.</p>
+        <input id="loginUserField" type="text" value="email" autocomplete="off" aria-describedby="loginUserField-help">
         <label for="loginPassField">Field name for the password</label>
-        <input id="loginPassField" type="text" value="password" autocomplete="off">
+        <p class="hint" id="loginPassField-help">What the login call names the password box.</p>
+        <input id="loginPassField" type="text" value="password" autocomplete="off" aria-describedby="loginPassField-help">
         <label for="loginBody">Extra details to send (JSON, optional)</label>
-        <textarea id="loginBody" placeholder='{"remember": true}'></textarea>
+        <p class="hint" id="loginBody-help">Anything else the login call needs, written as JSON.</p>
+        <textarea id="loginBody" placeholder='{"remember": true}' aria-describedby="loginBody-help"></textarea>
       </details>
     </div>
     <div data-cred="bearer" hidden>
       <label for="credToken">Token</label>
-      <input id="credToken" type="password" autocomplete="off">
+      <p class="hint" id="credToken-help">The token to send as the Bearer pass on every call.</p>
+      <input id="credToken" type="password" autocomplete="off" aria-describedby="credToken-help">
     </div>
     <div data-cred="apikey" hidden>
       <label for="credHeader">Header name</label>
-      <input id="credHeader" type="text" value="X-Api-Key" autocomplete="off">
+      <p class="hint" id="credHeader-help">The header the site reads the key from, often X-Api-Key.</p>
+      <input id="credHeader" type="text" value="X-Api-Key" autocomplete="off" aria-describedby="credHeader-help">
       <label for="credValue">API key</label>
-      <input id="credValue" type="password" autocomplete="off">
+      <p class="hint" id="credValue-help">The key itself, sent in that header on every call.</p>
+      <input id="credValue" type="password" autocomplete="off" aria-describedby="credValue-help">
     </div>
     <div data-cred="basic" hidden>
       <label for="credUser">Username</label>
-      <input id="credUser" type="text" autocomplete="off">
+      <p class="hint" id="credUser-help">The test account name sent with every call.</p>
+      <input id="credUser" type="text" autocomplete="off" aria-describedby="credUser-help">
       <label for="credPass">Password</label>
-      <input id="credPass" type="password" autocomplete="off">
+      <p class="hint" id="credPass-help">The password of that test account.</p>
+      <input id="credPass" type="password" autocomplete="off" aria-describedby="credPass-help">
     </div>
-    <p class="hint">Sent with every call in the test. Use a test account, never a real person's details. They are saved in plain text on this computer and never shown in the report.</p>
+    <p class="hint">Sent with every call in the test. They never appear in the report.</p>
   </section>
 
-  <section>
+  <section class="panel">
     <h2>Kind of test</h2>
     <div id="types" class="cards" role="radiogroup" aria-label="Kind of test"></div>
     <p class="shape" id="shape" aria-live="polite"></p>
   </section>
 
-  <section>
+  <section class="panel">
     <p class="hint" id="advLine" style="margin:0"></p>
     <details id="adv">
       <summary>Advanced: people, time, limits, graphs</summary>
 
       <h3>How much traffic?</h3>
       <div class="grid">
-        <div><label for="peakUsers">People at the same time</label><input id="peakUsers" type="number" min="1"></div>
-        <div><label for="rampUpS">Time to build up (seconds)</label><input id="rampUpS" type="number" min="0"></div>
-        <div><label for="holdS">Time at full traffic (seconds)</label><input id="holdS" type="number" min="0"></div>
-        <div><label for="rampDownS">Time to wind down (seconds)</label><input id="rampDownS" type="number" min="0"></div>
-        <div><label for="thinkTimeS">Pause between actions (seconds)</label><input id="thinkTimeS" type="number" min="0" step="0.5" value="1"></div>
+        <div><label for="peakUsers">People at the same time</label><p class="hint" id="peakUsers-help">How many simulated people use the site at the very same moment.</p><input id="peakUsers" type="number" min="1" aria-describedby="peakUsers-help"></div>
+        <div><label for="rampUpS">Time to build up (seconds)</label><p class="hint" id="rampUpS-help">How long it takes to go from no one to the full number of people.</p><input id="rampUpS" type="number" min="0" aria-describedby="rampUpS-help"></div>
+        <div><label for="holdS">Time at full traffic (seconds)</label><p class="hint" id="holdS-help">How long the full number of people keep using the site.</p><input id="holdS" type="number" min="0" aria-describedby="holdS-help"></div>
+        <div><label for="rampDownS">Time to wind down (seconds)</label><p class="hint" id="rampDownS-help">How long it takes for everyone to leave again.</p><input id="rampDownS" type="number" min="0" aria-describedby="rampDownS-help"></div>
+        <div><label for="thinkTimeS">Pause between actions (seconds)</label><p class="hint" id="thinkTimeS-help">How long each person waits before the next call, like a real reader.</p><input id="thinkTimeS" type="number" min="0" step="0.5" value="1" aria-describedby="thinkTimeS-help"></div>
       </div>
-      <div id="stepsBox" hidden><label for="stressSteps">Steps, as a share of the people above</label><input id="stressSteps" type="text" value="0.5, 1, 1.5, 2"></div>
+      <div id="stepsBox" hidden><label for="stressSteps">Steps, as a share of the people above</label><p class="hint" id="stressSteps-help">Each number is one step; 1.5 means one and a half times the people above.</p><input id="stressSteps" type="text" value="0.5, 1, 1.5, 2" aria-describedby="stressSteps-help"></div>
 
       <h3>What counts as good? (optional)</h3>
       <div class="grid">
-        <div><label for="p95Ms">Slowest 1 in 20 visits should be under (milliseconds)</label><input id="p95Ms" type="number" min="1" value="1000"></div>
-        <div><label for="errorPct">Failed requests should stay under (percent)</label><input id="errorPct" type="number" min="0" step="0.1" value="1"></div>
+        <div><label for="p95Ms">Slowest 1 in 20 visits should be under (milliseconds)</label><p class="hint" id="p95Ms-help">Slowest 1 in 20 visits (p95) must finish faster than this.</p><input id="p95Ms" type="number" min="1" value="1000" aria-describedby="p95Ms-help"></div>
+        <div><label for="errorPct">Failed requests should stay under (percent)</label><p class="hint" id="errorPct-help">The share of calls allowed to fail before the test counts as failed.</p><input id="errorPct" type="number" min="0" step="0.1" value="1" aria-describedby="errorPct-help"></div>
       </div>
       <p class="hint">Clear a box to set no limit for it. With no limits the test never fails or stops early because of speed or errors.</p>
 
       <h3>Live graphs</h3>
-      <label style="font-weight:400"><input type="checkbox" id="grafana"> Show live graphs in Grafana while the test runs</label>
-      <p class="hint">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
+      <label class="check"><input type="checkbox" id="grafana" aria-describedby="grafana-help grafana-warn"> Show live graphs in Grafana while the test runs</label>
+      <p class="hint" id="grafana-help">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
+      <p class="callout is-warning" id="grafana-warn" hidden>Grafana is not reachable right now. Start Docker Desktop and run npm run grafana, or untick this.</p>
     </details>
   </section>
 
   <ul id="ready" aria-live="polite"></ul>
-  <label style="font-weight:400"><input type="checkbox" id="own"> I own this system or have permission to load test it</label>
+  <label class="check"><input type="checkbox" id="own"> I own this system or have permission to load test it</label>
   <div class="actions">
-    <button class="primary" id="run" type="submit">Run test</button>
-    <button id="stop" type="button" disabled>Stop test</button>
+    <button class="btn-primary" id="run" type="submit">Run test</button>
+    <button class="btn-danger" id="stop" type="button" disabled>Stop test</button>
     <button id="checkBtn" type="button">Check the first call</button>
   </div>
   <p id="checkOut" class="hint" aria-live="polite"></p>
   <ul id="errors" role="alert"></ul>
 </form>
 
-<section id="status" hidden aria-live="polite" style="margin-top:16px">
+<section id="status" class="panel" hidden aria-live="polite" style="margin-top:16px">
   <h2>Current test</h2>
   <p><span class="pill" id="stState"></span> <span id="stText"></span></p>
   <ul id="stWhy" class="hint"></ul>
@@ -214,10 +255,20 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
   <details><summary>Technical details</summary><pre id="stLog"></pre></details>
 </section>
 
-<section>
+<section class="panel">
   <h2>Past tests</h2>
-  <div style="overflow-x:auto"><table><thead><tr><th>Started</th><th>Name</th><th>Result</th><th>Slowest 1 in 20</th><th>Report</th></tr></thead><tbody id="history"></tbody></table></div>
+  <div style="overflow-x:auto"><table class="data"><thead><tr><th>Started</th><th>Name</th><th>Result</th><th>Slowest 1 in 20</th><th>Report</th></tr></thead><tbody id="history"></tbody></table></div>
 </section>
+
+<details id="help" class="panel">
+  <summary>Help</summary>
+  <ul class="hint">
+    <li>Import a Postman collection, an OpenAPI 3 or Swagger 2 file (JSON), or a list of {method, path}.</li>
+    <li>You can test at most 50 calls at once.</li>
+    <li>Credentials are saved as plain text in this browser's storage and in the run files on this computer.</li>
+    <li>Live graphs need Grafana: start Docker Desktop, then run <code>npm run grafana</code> in the perf-studio folder.</li>
+  </ul>
+</details>
 </div>
 </div>
 </main>
@@ -229,6 +280,7 @@ import { explainRun } from '/lib/explain.js';
 import { allPlaceholders, fillValues } from '/lib/fill.js';
 import { callTraits, checkSetup, loginFromCall } from '/lib/setup.js';
 import { CHART_CSS, lineChart } from '/lib/charts.js';
+import { THEME_CSS } from '/lib/theme.js';
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, props = {}, ...kids) => {
@@ -266,14 +318,14 @@ function addEndpoint(data = {}) {
   const row = el('div', { className: 'ep' });
   row.innerHTML = `
     <div class="row">
-      <div><label>Method</label><select class="m">${['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => `<option>${m}</option>`).join('')}</select></div>
-      <div><label>Page or API address</label><input class="p" type="text" placeholder="/api/items"></div>
+      <div><label>Method</label><p class="hint">What kind of request to send.</p><select class="m">${['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((m) => `<option>${m}</option>`).join('')}</select></div>
+      <div><label>Page or API address</label><p class="hint">The path after the website address, for example /api/items.</p><input class="p" type="text" placeholder="/api/items"></div>
       <button type="button" class="rm" aria-label="Remove this page or API call">Remove</button>
     </div>
     <details><summary>Headers, request body, expected status (optional)</summary>
-      <label>Headers, one per line as Name: value</label><textarea class="h"></textarea>
-      <label>Request body</label><textarea class="b"></textarea>
-      <label>Expected status code (leave empty for any success)</label><input class="s" type="number" min="100" max="599">
+      <label>Headers, one per line as Name: value</label><p class="hint">Extra details sent with this call only.</p><textarea class="h"></textarea>
+      <label>Request body</label><p class="hint">The data this call sends, usually JSON.</p><textarea class="b"></textarea>
+      <label>Expected status code (leave empty for any success)</label><p class="hint">The reply code that counts as a pass, for example 201.</p><input class="s" type="number" min="100" max="599">
     </details>`;
   row.querySelector('.m').value = data.method ?? 'GET';
   row.querySelector('.p').value = data.path ?? '/';
@@ -344,6 +396,7 @@ function resetImport() {
   for (const id of ['importWarnBox', 'pickArea', 'reset']) $(id).hidden = true;
   $('groups').replaceChildren();
   renderImportedEps();
+  panelCount();
   if (!$('endpoints').children.length) addEndpoint({ isDefault: true }); // restore the row import removed
   refreshSetup();
 }
@@ -403,10 +456,13 @@ function renderPanel() {
 }
 
 const isSafeRead = (e) => { const t = callTraits(e); return !t.writes && !t.needs.length; };
+// The drawer toggle shows the count on small screens, where the panel itself is out of sight.
+const panelCount = () => { $('panelToggle').textContent = selected.size ? `API calls (${selected.size})` : 'API calls'; };
 const showCount = () => {
+  panelCount();
   if ($('selCount').querySelector('.limit')) return;
   const safe = imported ? imported.endpoints.filter((e) => e.selectable && isSafeRead(e)).length : 0;
-  $('selCount').textContent = `${selected.size} selected (most you can pick: ${defaults.limits.maxEndpoints}). Safe reads: ${safe} of ${imported?.endpoints.length ?? 0}.`;
+  $('selCount').textContent = `${selected.size} of ${defaults.limits.maxEndpoints} calls selected. Safe reads: ${safe} of ${imported?.endpoints.length ?? 0}.`;
 };
 
 // Update ticks in place so focus and scroll stay where the user is.
@@ -456,7 +512,8 @@ function renderValues(names) {
   $('valueBoxes').replaceChildren(...names.map((name) => {
     const input = el('input', { type: 'text', id: `val-${name}`, value: values[name] ?? '', autocomplete: 'off' });
     input.oninput = () => { values[name] = input.value; refreshSetup(); };
-    return el('div', {}, el('label', { htmlFor: input.id }, name), input);
+    input.setAttribute('aria-describedby', `${input.id}-help`);
+    return el('div', {}, el('label', { htmlFor: input.id }, name), el('p', { className: 'hint', id: `${input.id}-help` }, 'Used in every call that has this gap.'), input);
   }));
 }
 
@@ -633,6 +690,7 @@ async function loadHistory() {
 }
 
 // ---- start ----
+document.head.prepend(el('style', { textContent: THEME_CSS })); // first, so the page's own rules win
 document.head.append(el('style', { textContent: CHART_CSS }));
 defaults = await (await fetch('/api/defaults')).json();
 renderTypes();
@@ -722,6 +780,31 @@ $('checkBtn').onclick = async () => {
     $('checkBtn').disabled = false;
   }
 };
+// ---- shell: endpoint drawer (small screens), help, Grafana status ----
+const panel = $('panel');
+const setPanel = (open) => { panel.classList.toggle('open', open); $('panelToggle').setAttribute('aria-expanded', String(open)); };
+const closePanel = () => { setPanel(false); $('panelToggle').focus(); };
+$('panelToggle').onclick = () => {
+  const open = !panel.classList.contains('open');
+  setPanel(open);
+  if (open) $('panelClose').focus();
+};
+$('panelClose').onclick = closePanel;
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && panel.classList.contains('open')) closePanel(); });
+$('helpLink').onclick = () => { $('help').open = true; };
+let grafanaUp = false;
+const grafanaWarn = () => { $('grafana-warn').hidden = !$('grafana').checked || grafanaUp; };
+async function grafanaStatus() {
+  try { grafanaUp = (await (await fetch('/api/grafana-status')).json()).available === true; } catch { grafanaUp = false; }
+  const b = $('hdrGrafana');
+  b.textContent = grafanaUp ? 'Live graphs available' : 'Live graphs unavailable';
+  b.className = `badge ${grafanaUp ? 'is-passed' : 'is-off'}`;
+  b.title = grafanaUp ? '' : 'Start Docker Desktop, then run npm run grafana';
+  grafanaWarn();
+}
+$('grafana').addEventListener('change', grafanaWarn);
+grafanaStatus();
+setInterval(grafanaStatus, 10000);
 refreshSetup();
 loadHistory();
 </script>
