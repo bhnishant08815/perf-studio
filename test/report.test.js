@@ -72,6 +72,44 @@ test('a failed run says Not ready', () => {
   assert.match(buildReport({ run: run(), summary: summary({ passed: false }), timeline, previous: undefined }), /<h2>Not ready<\/h2>/);
 });
 
+const refusedSummary = (name = 'Login') => summary({
+  passed: false,
+  requests: 1745,
+  failPct: 100,
+  p95Ms: 344,
+  endpoints: [endpoint(name, 344, { requests: 1745, failPct: 100, statusClasses: { '2xx': 0, '3xx': 0, '4xx': 1745, '5xx': 0, none: 0 } })],
+  limits: [{ what: 'p95', limit: 1000, actual: 344, ok: true }, { what: 'errors', limit: 1, actual: 100, ok: false }],
+});
+
+test('the top box explains a refused run in plain words', () => {
+  const html = buildReport({ run: run(), summary: refusedSummary(), timeline, previous: undefined });
+  assert.match(html, /class="verdict bad"/);
+  assert.ok(html.includes('Nearly every request was refused by the site'));
+  assert.ok(html.includes('You asked for fewer than 1% of requests to fail. 100% failed.'));
+  assert.ok(html.includes('What to do next'));
+  assert.ok(html.indexOf('What to do next') < html.indexOf('Key numbers'));
+});
+
+test('the top box escapes endpoint names', () => {
+  const html = buildReport({ run: run(), summary: refusedSummary('<b>x</b> & "y"'), timeline, previous: undefined });
+  const top = html.slice(html.indexOf('class="verdict'), html.indexOf('Key numbers'));
+  assert.ok(!top.includes('<b>x</b>'));
+  assert.ok(top.includes('&lt;b&gt;x&lt;/b&gt; &amp; &quot;y&quot;'));
+});
+
+test('a stopped run says so at the top', () => {
+  const html = buildReport({ run: run({ status: 'stopped' }), summary: summary({ passed: false }), timeline, previous: undefined });
+  assert.ok(html.includes('You stopped this test early'));
+});
+
+test('limits section says what was allowed and the glossary explains a limit', () => {
+  const html = buildReport({ run: run(), summary: refusedSummary(), timeline, previous: undefined });
+  assert.ok(html.includes('Failed requests: 100.00%. You allowed up to 1%.'));
+  assert.ok(html.includes('Slowest 1 in 20 visits: 344 ms. You allowed up to 1000 ms.'));
+  assert.ok(html.includes('<dt>Limit</dt>'));
+  assert.ok(html.includes('<dt>Refused request (4xx)</dt>'));
+});
+
 test('an empty timeline says so and draws no line chart', () => {
   const html = buildReport({ run: run(), summary: summary(), timeline: [], previous: undefined });
   assert.match(html, /No timeline data for this run/);
@@ -102,8 +140,8 @@ test('print styles and a Save as PDF button', () => {
 
 test('your limits are written in words', () => {
   const html = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
-  assert.match(html, /Slowest 1 in 20 under 1000 ms: 300 ms, met/);
-  assert.match(html, /Failed requests under 1%: 0.00%, met/);
+  assert.match(html, /<span class="tag">Met<\/span> Slowest 1 in 20 visits: 300 ms\. You allowed up to 1000 ms\./);
+  assert.match(html, /<span class="tag">Met<\/span> Failed requests: 0\.00%\. You allowed up to 1%\./);
 });
 
 test('every chart has a visible title, not only a hidden svg title', () => {
@@ -129,6 +167,7 @@ test('with no limits set, nothing is judged against a limit', () => {
   assert.ok(!html.includes('Over your limit') && !html.includes('Within your limit'));
   assert.ok(html.includes('You set no limits for this run.'));
   assert.ok(!html.includes('met your limits'));
+  assert.match(html, /You set no limits, so nothing was judged\./);
   assert.ok(!html.includes('class="bad">33.00%'), 'a failure rate is not flagged without a limit');
 });
 
