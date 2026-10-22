@@ -34,6 +34,20 @@ test('refused login, speed fine: says refused, names the call, says what to do',
   assert.equal(r.did, 'We sent up to 100 people at once to https://shop.test, visiting 1 page or API call.');
 });
 
+test('a website address that already holds a page is named as the cause', () => {
+  const c = cfg({ baseUrl: 'https://hire-uat.fly.dev/login', endpoints: [{ method: 'POST', path: '/api/auth/login' }] });
+  const summary = sum({ endpoints: [ep('Login', classes({ '4xx': 1745 }), { failPct: 100 })], limits: limits({ actual: 344, ok: true }, { actual: 100, ok: false }) });
+  const r = explainRun({ cfg: c, summary });
+  assert.equal(r.found[0], 'Your website address includes "/login", so calls went to https://hire-uat.fly.dev/login/api/auth/login.');
+  assert.equal(r.next[0], 'Change the website address to just https://hire-uat.fly.dev, then run again.');
+  const silent = explainRun({ cfg: c, summary: sum({ requests: 100, endpoints: [ep('Login', classes({ none: 100 }), { failPct: 100 })] }) });
+  assert.equal(silent.found[0], r.found[0]);
+  assert.equal(silent.next[0], r.next[0]);
+  const plain = explainRun({ cfg: { ...c, baseUrl: 'https://hire-uat.fly.dev/' }, summary });
+  assert.ok(!plain.found.some((l) => l.includes('Your website address')));
+  assert.equal(plain.next[0], 'Check the address and the login details for Login, then run again.');
+});
+
 test('one person reads "1 person", and a smoke test is not told to run a smoke test', () => {
   const r = explainRun({
     cfg: cfg({ peakUsers: 1, testType: 'smoke' }),
