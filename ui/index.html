@@ -257,6 +257,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
   <h2>Current test</h2>
   <p><span class="badge" id="stState"></span> <span id="stText"></span></p>
   <p id="stPhase" class="hint" title="Estimated from your settings" hidden></p>
+  <p id="stMetricsNote" class="hint"></p>
   <div id="stMetrics"></div>
   <ul id="stWhy" class="hint"></ul>
   <div id="stChart" class="grid" style="align-items:start"></div>
@@ -685,7 +686,7 @@ function follow(id) {
     const phase = running && run.config.testType !== 'breakpoint' ? plannedPhase(run.config, elapsedS) : null;
     $('stPhase').hidden = !phase;
     $('stPhase').textContent = phase ? `Planned phase: ${phase.label} (stage ${phase.stage} of ${phase.stages}). Estimated from your settings, not measured.` : '';
-    renderMetrics(run);
+    renderMetrics(run, running);
     // A finished run with results gets the same plain explanation as the report's top box.
     const why = !running && run.summary && run.status !== 'error' ? explainRun({ cfg: run.config, summary: run.summary, stopped: run.status === 'stopped' }) : null;
     if (why) $('stText').textContent = why.headline;
@@ -717,9 +718,12 @@ function follow(id) {
 }
 
 // The four live numbers. null means no data yet and shows n/a, never a fake 0.
-function renderMetrics(run) {
+// After the run the tiles keep the final window only; the badge and report carry the verdict, so no "Over your limit".
+function renderMetrics(run, running) {
   const m = latestMetrics(run.timeline);
   const lim = run.config.thresholds ?? {};
+  const last = running ? 'in the last 5 seconds' : 'in the last 5 seconds of the run';
+  $('stMetricsNote').textContent = running ? 'Last 5 seconds' : 'Last reading before the run ended';
   const fmt = (v, digits) => (v == null ? 'n/a' : v.toFixed(digits));
   const tile = (name, v, digits, unit, help, extra = [], over = false) => el('div', { className: `metric${over ? ' is-critical' : ''}` },
     el('span', { className: 'metric-name' }, name),
@@ -727,17 +731,19 @@ function renderMetrics(run) {
     el('span', { className: 'metric-help' }, help),
     ...extra.map((t) => el('span', { className: `metric-help${t === 'Over your limit' ? ' crit' : ''}` }, t)),
   );
-  const slowOver = lim.p95Ms != null && m.p95SoFarMs != null && m.p95SoFarMs > lim.p95Ms;
-  const failOver = lim.errorPct != null && m.failPct != null && m.failPct > lim.errorPct;
+  const slowOver = running && lim.p95Ms != null && m.p95SoFarMs != null && m.p95SoFarMs > lim.p95Ms;
+  const failOver = running && lim.errorPct != null && m.failPct != null && m.failPct > lim.errorPct;
   $('stMetrics').replaceChildren(
-    tile('People now', m.users, 0, 'people', 'Simulated people using the site right now.'),
-    tile('Requests per second', m.rps, 1, 'req/s', 'Calls sent per second in the last 5 seconds.'),
-    tile('Average response time', m.avgMs, 0, 'ms', 'Average of the last 5 seconds. This is not the slow 1 in 20 (p95) figure.', [
+    running
+      ? tile('People now', m.users, 0, 'people', 'Simulated people using the site right now.')
+      : tile('People at the end', m.users, 0, 'people', 'Simulated people using the site when the run ended.'),
+    tile('Requests per second', m.rps, 1, 'req/s', `Calls sent per second ${last}.`),
+    tile('Average response time', m.avgMs, 0, 'ms', `Average ${running ? 'of the last 5 seconds' : last}. This is not the slow 1 in 20 (p95) figure.`, [
       `Slow 1 in 20 so far: ${m.p95SoFarMs == null ? 'n/a' : `${Math.round(m.p95SoFarMs)} ms`}`,
       ...(lim.p95Ms == null ? [] : [`Your limit: ${lim.p95Ms} ms (slow 1 in 20)`]),
       ...(slowOver ? ['Over your limit'] : []),
     ], slowOver),
-    tile('Failed requests', m.failPct, 1, '%', 'Share of requests that failed in the last 5 seconds.', [
+    tile('Failed requests', m.failPct, 1, '%', `Share of requests that failed ${last}.`, [
       ...(lim.errorPct == null ? [] : [`Your limit: ${lim.errorPct}%`]),
       ...(failOver ? ['Over your limit'] : []),
     ], failOver),

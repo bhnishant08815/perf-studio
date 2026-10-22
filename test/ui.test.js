@@ -47,3 +47,8 @@ test('status panel imports the helpers', () => {
   assert.match(imp, /\bplannedPhase\b/);
   assert.match(imp, /\blatestMetrics\b/);
 });
+
+test('metric strip says when a finished run shows its last reading', () => {
+  assert.ok(script.includes('Last reading before the run ended'));
+  assert.match(script, /renderMetrics\(run, running\)/);
+});
