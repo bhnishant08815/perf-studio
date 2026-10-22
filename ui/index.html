@@ -18,7 +18,7 @@ label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}
 input,select,textarea,button{font:inherit;color:inherit}
 input[type=text],input[type=password],input[type=url],input[type=number],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
 .pw{position:relative}.pw input{padding-right:42px}
-.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted,inherit);cursor:pointer}
+.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--mut);cursor:pointer}
 .eye:hover{background:var(--line)}
 textarea{min-height:56px;font-family:ui-monospace,Consolas,monospace;font-size:13px}
 .hint{color:var(--mut);font-size:13px;margin:2px 0 0;font-weight:400}
@@ -51,13 +51,17 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 .drop.over{border-color:var(--accent)}
 .drop input{display:block;margin:8px auto 0;font-size:13px;max-width:100%}
 .grp{margin-top:12px}.grp-head{display:flex;gap:8px;align-items:center;font-weight:600;font-size:14px;margin:0;list-style:none}
-.grp-head::before{content:"\25B8";width:1em;color:var(--muted,inherit)}.grp[open]>.grp-head::before{content:"\25BE"}
+.grp-head::before{content:"\25B8";width:1em;color:var(--mut)}.grp[open]>.grp-head::before{content:"\25BE"}
 .pick{display:grid;grid-template-columns:auto auto 1fr;gap:6px;align-items:start;font-weight:400;font-size:13px;margin:6px 0 0 4px}
 .pick small{grid-column:3;color:var(--mut);word-break:break-all}
 .pick.off{opacity:.55}
 .mp{font:600 11px ui-monospace,Consolas,monospace;padding:1px 5px;border-radius:4px;border:1px solid var(--line)}
 .warn{color:var(--ok);grid-column:3;font-size:12px}
 .limit{color:var(--bad);font-weight:600}
+.chip{grid-column:3;justify-self:start;font-size:11px;padding:0 6px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}.chip.bad{color:var(--bad);border-color:var(--bad)}
+#ready{list-style:none;margin:12px 0 0;padding:0}#ready li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid var(--ok);padding:6px 10px;margin-bottom:6px;font-size:14px}
+#ready li.stop{border-left-color:var(--bad)}#ready li button{padding:2px 10px}
+#valueBoxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 12px}
 .imp{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:14px}
 .imp span.n{flex:1;min-width:0;overflow-wrap:anywhere}
 .imp button{padding:2px 10px}
@@ -81,7 +85,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     <div id="pickArea" hidden>
       <label for="search">Search calls</label>
       <input id="search" type="text" placeholder="Name, address, method or folder">
-      <div class="actions" style="margin-top:8px"><button type="button" id="selAll">Select all shown</button><button type="button" id="selNone">Clear</button></div>
+      <div class="actions" style="margin-top:8px"><button type="button" id="selAll">Select all shown</button><button type="button" id="selSafe">Select safe reads only</button><button type="button" id="selNone">Clear</button></div>
       <p id="selCount" aria-live="polite"></p>
       <div id="groups"></div>
     </div>
@@ -99,6 +103,11 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     <div id="importedEps"></div>
     <div id="endpoints"></div>
     <button type="button" id="addEp">Add another page or API call</button>
+    <div id="values" hidden>
+      <h3>Values the calls need</h3>
+      <p class="hint">Some calls have a gap such as :round_id. Type a real value from your test system once; it is used in every call that has that gap.</p>
+      <div id="valueBoxes"></div>
+    </div>
   </section>
 
   <section id="credBox">
@@ -182,6 +191,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     <p class="hint">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
   </section>
 
+  <ul id="ready" aria-live="polite"></ul>
   <label style="font-weight:400"><input type="checkbox" id="own"> I own this system or have permission to load test it</label>
   <div class="actions">
     <button class="primary" id="run" type="submit">Run test</button>
@@ -211,6 +221,8 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 import { describeShape, filterEndpoints, fmtDuration, groupEndpoints, parseHeaders, presetFor, toConfigEndpoints } from '/lib/form.js';
 import { importCollection } from '/lib/importers.js';
 import { explainRun } from '/lib/explain.js';
+import { allPlaceholders, fillValues } from '/lib/fill.js';
+import { callTraits, checkSetup, loginFromCall } from '/lib/setup.js';
 import { CHART_CSS, lineChart } from '/lib/charts.js';
 
 const $ = (id) => document.getElementById(id);
@@ -262,7 +274,9 @@ function addEndpoint(data = {}) {
   row.querySelector('.p').value = data.path ?? '/';
   if (data.isDefault) row.dataset.default = '1';
   row.addEventListener('input', () => delete row.dataset.default);
-  row.querySelector('.rm').onclick = () => ($('endpoints').children.length > 1 || selected.size > 0) && row.remove();
+  row.querySelector('.rm').onclick = () => {
+    if ($('endpoints').children.length > 1 || selected.size > 0) { row.remove(); refreshSetup(); }
+  };
   $('endpoints').append(row);
 }
 
@@ -277,6 +291,10 @@ function readEndpoints() {
     return e;
   })];
 }
+
+// The calls as they will run: gaps like :round_id replaced by the values the user typed.
+const values = {};
+const currentCalls = () => readEndpoints().map((e) => fillValues(e, values));
 
 // ---- imported endpoints side panel ----
 const STORE = 'perf-studio-import';
@@ -304,6 +322,7 @@ function loadImport(result, keepSelection = []) {
   $('pickArea').hidden = false;
   $('reset').hidden = false;
   renderPanel();
+  refreshSetup(); // an import can change the readiness list (for example a login call to point at)
 }
 
 function resetImport() {
@@ -317,6 +336,7 @@ function resetImport() {
   $('groups').replaceChildren();
   renderImportedEps();
   if (!$('endpoints').children.length) addEndpoint({ isDefault: true }); // restore the row import removed
+  refreshSetup();
 }
 
 function doImport(text) {
@@ -357,6 +377,9 @@ function renderPanel() {
         changed(false);
       };
       const kids = [box, el('span', { className: 'mp' }, e.method), el('span', {}, e.name), el('small', {}, e.path)];
+      const traits = callTraits(e);
+      if (traits.writes) kids.push(el('span', { className: `chip${traits.risky ? ' bad' : ''}` }, 'Changes data'));
+      if (traits.needs.length) kids.push(el('span', { className: 'chip' }, 'Needs a value'));
       if (e.warnings.length) kids.push(el('span', { className: 'warn' }, `Check: ${e.warnings.join('; ')}`));
       return el('label', { className: `pick${e.selectable ? '' : ' off'}` }, ...kids);
     });
@@ -370,8 +393,11 @@ function renderPanel() {
   showCount();
 }
 
+const isSafeRead = (e) => { const t = callTraits(e); return !t.writes && !t.needs.length; };
 const showCount = () => {
-  if (!$('selCount').querySelector('.limit')) $('selCount').textContent = `${selected.size} selected (most you can pick: ${defaults.limits.maxEndpoints})`;
+  if ($('selCount').querySelector('.limit')) return;
+  const safe = imported ? imported.endpoints.filter((e) => e.selectable && isSafeRead(e)).length : 0;
+  $('selCount').textContent = `${selected.size} selected (most you can pick: ${defaults.limits.maxEndpoints}). Safe reads: ${safe} of ${imported?.endpoints.length ?? 0}.`;
 };
 
 // Update ticks in place so focus and scroll stay where the user is.
@@ -407,6 +433,53 @@ function changed(clearMessage = true) {
   syncPanel();
   renderImportedEps();
   save();
+  refreshSetup();
+}
+
+// ---- readiness: what will not work or needs care, in plain words, before Run ----
+let isRunning = false;
+let valuesKey = '';
+
+function renderValues(names) {
+  $('values').hidden = !names.length;
+  if (names.join(',') === valuesKey) return; // same boxes: keep focus while typing
+  valuesKey = names.join(',');
+  $('valueBoxes').replaceChildren(...names.map((name) => {
+    const input = el('input', { type: 'text', id: `val-${name}`, value: values[name] ?? '', autocomplete: 'off' });
+    input.oninput = () => { values[name] = input.value; refreshSetup(); };
+    return el('div', {}, el('label', { htmlFor: input.id }, name), input);
+  }));
+}
+
+function useLoginCall(login, loginCall) {
+  $('credType').value = 'login';
+  showCred();
+  $('loginPath').value = login.path;
+  $('loginUserField').value = login.userField;
+  $('loginPassField').value = login.passField;
+  $('loginBody').value = Object.keys(login.extra).length ? JSON.stringify(login.extra) : '';
+  selected.delete(loginCall.id); // the login runs first on its own; it should not also be a tested call
+  changed(true);
+}
+
+function refreshSetup() {
+  const calls = readEndpoints();
+  renderValues(allPlaceholders(calls));
+  const loginCall = imported?.endpoints.find((e) => loginFromCall(e)) ?? null;
+  const issues = checkSetup({ baseUrl: $('baseUrl').value.trim(), endpoints: calls, values, credKind: $('credType').value, loginCall });
+  $('ready').replaceChildren(...issues.map((i) => {
+    const li = el('li', { className: i.level }, el('span', {}, i.text));
+    if (i.fix) {
+      const b = el('button', { type: 'button', textContent: i.fix.label });
+      b.onclick = () => {
+        if (i.id === 'base-path') { $('baseUrl').value = i.fix.baseUrl; refreshSetup(); }
+        else if (i.id === 'login') useLoginCall(loginFromCall(loginCall), loginCall);
+      };
+      li.append(b);
+    }
+    return li;
+  }));
+  $('run').disabled = isRunning || issues.some((i) => i.level === 'stop');
 }
 
 // ---- test type and shape ----
@@ -447,7 +520,7 @@ function readConfig() {
     rampDownS: n('rampDownS'),
     thinkTimeS: n('thinkTimeS'),
     thresholds: { p95Ms: optional('p95Ms'), errorPct: optional('errorPct') },
-    endpoints: readEndpoints(),
+    endpoints: currentCalls(),
     grafana: { enabled: $('grafana').checked },
     ownershipConfirmed: $('own').checked,
   };
@@ -506,7 +579,8 @@ function follow(id) {
       ? fig('Requests per second', lineChart({ title: 'Requests per second', series: [{ label: 'Requests per second', points: tl.map((p) => [p.t, p.rps]) }], formatY: (v) => v.toFixed(1), width: 420, height: 180 }))
         + fig('Average response time', lineChart({ title: 'Average response time', series: [{ label: 'Average', points: tl.map((p) => [p.t, p.avgMs]) }], formatY: (v) => `${Math.round(v)} ms`, width: 420, height: 180 }))
       : '';
-    $('run').disabled = running;
+    isRunning = running;
+    refreshSetup(); // also sets the Run button: off while running or while a value is missing
     $('stop').disabled = !running;
     const links = [];
     if (!running && run.hasReport !== false && run.status !== 'error') links.push(el('a', { href: `/runs/${id}/report.html`, target: '_blank' }, 'Open the plain language report'));
@@ -581,13 +655,22 @@ for (const input of document.querySelectorAll('input[type=password]')) {
   wrap.append(input, btn);
   paint(false);
 }
-$('credType').onchange = () => {
+function showCred() {
   for (const box of document.querySelectorAll('[data-cred]')) box.hidden = box.dataset.cred !== $('credType').value;
+}
+$('credType').onchange = () => { showCred(); refreshSetup(); };
+$('baseUrl').addEventListener('input', refreshSetup);
+$('endpoints').addEventListener('input', refreshSetup);
+$('selSafe').onclick = () => {
+  $('selCount').textContent = '';
+  for (const e of filterEndpoints(imported.endpoints, $('search').value)) if (e.selectable && !selected.has(e.id) && isSafeRead(e) && !tick(e.id, true)) break;
+  changed(false);
 };
-$('addEp').onclick = () => addEndpoint();
+$('addEp').onclick = () => { addEndpoint(); refreshSetup(); };
 $('f').addEventListener('submit', submit);
 $('stop').onclick = async () => { if (current) await fetch(`/api/runs/${current.id}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); };
 $('reset').onclick = resetImport;
+refreshSetup();
 loadHistory();
 </script>
 </body>

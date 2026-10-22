@@ -21,6 +21,7 @@ A local page to run load tests with k6 and watch them live in Grafana. No npm pa
 - YAML files are not supported yet: export as JSON.
 - One website per test. Calls on another host are shown but cannot be ticked.
 - At most 50 calls per test. The panel remembers your last import and ticks on this computer.
+- The page warns before you run: a website address that already holds a page, calls with gaps to fill in (such as :round_id), calls that change data, and a login call you have not set up. Gaps are filled once in "Values the calls need". "Select safe reads only" ticks the GET calls that need no value.
 - "Things to check" lists what needs your attention: a `{{variable}}` with no value, a path value set to 1, a form data body or an auth type that was not imported.
 
 ## Reading the report

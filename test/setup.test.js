@@ -57,6 +57,12 @@ test('writes: warns how many selected calls change data', () => {
   assert.equal(i.level, 'warn');
   assert.equal(i.text, '2 of the selected calls change data (POST, PUT, PATCH or DELETE). A load test repeats them many times, so use a test system, not real data.');
   assert.equal(byId(check({ endpoints: [get('/a')] }), 'writes'), undefined);
+  assert.equal(byId(check({ endpoints: [post('/b')] }), 'writes').text, '1 of the selected calls changes data (POST, PUT, PATCH or DELETE). A load test repeats them many times, so use a test system, not real data.');
+});
+
+test('base-path: the example call path uses the values already typed', () => {
+  const i = byId(check({ baseUrl: 'https://x.com/login', endpoints: [get('/api/interviews/:round_id')], values: { round_id: '42' } }), 'base-path');
+  assert.ok(i.text.includes('would go to https://x.com/login/api/interviews/42.'), i.text);
 });
 
 test('risky: names the first three and counts the rest', () => {
