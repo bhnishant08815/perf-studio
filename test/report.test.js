@@ -213,3 +213,43 @@ test('query values in paths never reach the report', () => {
   assert.ok(!html.includes('SECRET123'));
   assert.ok(html.includes('/s?api_key=***'));
 });
+
+test('report prints light', () => {
+  const html = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
+  const at = html.indexOf('@media print');
+  assert.ok(at > 0);
+  assert.ok(html.indexOf('#29332C', at) > at);
+});
+
+test('slowest call is named before the table', () => {
+  const s = summary();
+  s.endpoints[1].name = 'Slow <b> & "x"';
+  const html = buildReport({ run: run(), summary: s, timeline, previous: undefined });
+  const at = html.indexOf('Slowest call: Slow &lt;b&gt; &amp; &quot;x&quot; (400 ms at p95)');
+  assert.ok(at > 0);
+  assert.ok(at < html.indexOf('<tr class="ep-row">'));
+});
+
+test('settings table explains each row', () => {
+  const html = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
+  assert.ok(html.includes('<th>What it means</th>'));
+  assert.ok(html.includes('<td>Credentials</td><td>None</td>'));
+  assert.ok(html.includes('The address every call is sent to.'));
+});
+
+test('comparison shows limit changes', () => {
+  const lim = (ok, actual) => [{ what: 'p95', ok, actual, limit: 1000 }];
+  const html = buildReport({ run: run(), summary: summary({ limits: lim(false, 1200) }), timeline, previous: { summary: summary({ limits: lim(true, 200) }) } });
+  const sec = html.slice(html.indexOf('Compared with last run'), html.indexOf('Plain English glossary'));
+  assert.match(sec, /Your limits<\/td><td>Met<\/td><td>Missed<\/td>/);
+  const none = buildReport({ run: run(), summary: summary(), timeline, previous: { summary: summary({ limits: undefined }) } });
+  assert.ok(!none.slice(none.indexOf('Compared with last run')).includes('Your limits</td>'));
+});
+
+test('table headers are sortable with an inline script', () => {
+  const html = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
+  assert.match(html, /<th data-sort tabindex="0" aria-sort="none">/);
+  assert.match(html, /<script>[\s\S]*aria-sort[\s\S]*<\/script>/);
+  assert.ok(!/<script[^>]*src=/.test(html));
+  assert.match(html, /<td class="num" data-v="200">/);
+});
