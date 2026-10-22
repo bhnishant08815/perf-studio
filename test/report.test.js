@@ -253,3 +253,14 @@ test('table headers are sortable with an inline script', () => {
   assert.ok(!/<script[^>]*src=/.test(html));
   assert.match(html, /<td class="num" data-v="200">/);
 });
+
+test('slowest call callout warns only when over the limit', () => {
+  const within = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
+  assert.ok(within.includes('<div class="callout">Slowest call:'));
+  const s = summary();
+  s.endpoints[1].p95Ms = 1200;
+  const over = buildReport({ run: run(), summary: s, timeline, previous: undefined });
+  assert.ok(over.includes('<div class="callout is-warning">Slowest call:'));
+  const noLimit = buildReport({ run: run({ config: { ...run().config, thresholds: { p95Ms: null, errorPct: null } } }), summary: s, timeline, previous: undefined });
+  assert.ok(noLimit.includes('<div class="callout">Slowest call:'));
+});

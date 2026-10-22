@@ -52,3 +52,16 @@ test('metric strip says when a finished run shows its last reading', () => {
   assert.ok(script.includes('Last reading before the run ended'));
   assert.match(script, /renderMetrics\(run, running\)/);
 });
+
+test('credentials callout says where typed credentials are stored', () => {
+  assert.match(markup, /credentials you type are written in plain text to the run files/);
+});
+
+test('grafana warning is a status message', () => {
+  assert.match(tagWithId('grafana-warn'), /role="status"/);
+});
+
+test('open drawer makes the form column inert on narrow screens', () => {
+  assert.match(script, /\.inert = /);
+  assert.match(script, /matchMedia\('\(min-width:1000px\)'\)/);
+});

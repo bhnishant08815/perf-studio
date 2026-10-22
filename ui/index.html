@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Perf Studio</title>
 <link rel="icon" href="data:,">
+<link rel="modulepreload" href="/lib/theme.js">
 <style>
 /* Page rules only; tokens and shared classes come from /lib/theme.js (injected by the script). */
 [hidden]{display:none!important}
@@ -14,7 +16,7 @@ body{padding:0 0 64px}
 #hdrTest{color:var(--text-2)}
 .top .spacer{flex:1}
 main{max-width:1280px;margin:auto;padding:24px}
-.sub{color:var(--text-2);margin:0 0 24px;max-width:72ch}
+.sub{color:var(--text);margin:0 0 24px;max-width:72ch}
 section.panel{margin-bottom:16px}
 h2{font-size:18px;font-weight:600;margin:0 0 12px}
 h3{font-size:15px;font-weight:600;margin:20px 0 4px}
@@ -39,8 +41,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
 .card{position:relative;border:1px solid var(--border);border-radius:8px;padding:10px 36px 10px 12px;cursor:pointer;margin:0;font-weight:400;background:var(--surface)}
 .card:hover{background:var(--surface-muted)}
-.card:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
-.card:has(input:checked)::after{content:"\2713";position:absolute;top:8px;right:12px;font-weight:700;color:var(--accent)}
+.card:has(input:checked){border:2px solid var(--accent);padding:9px 35px 9px 11px}
+.card:has(input:checked)::after{content:"\2713";content:"\2713" / "";position:absolute;top:8px;right:12px;font-weight:700;color:var(--accent)}
 .card:has(input:focus-visible){outline:2px solid var(--live);outline-offset:2px}
 .card input{position:absolute;opacity:0}
 .card b{display:block;font-weight:600}.card span{color:var(--text-2);font-size:13px}
@@ -65,7 +67,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
 .layout>*{min-width:0}
 #panel>.panel{margin:0}
 @media(min-width:1000px){.layout{grid-template-columns:320px minmax(0,1fr)}#panel{position:sticky;top:16px;max-height:calc(100vh - 32px);overflow:auto;border-radius:8px}#panelToggle,#panelClose{display:none}}
-@media(max-width:999.98px){#panel{position:fixed;inset:0 auto 0 0;z-index:30;width:min(360px,90vw);overflow:auto;background:var(--canvas);padding:12px;border-right:1px solid var(--border);transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility .2s}#panel.open{transform:none;visibility:visible}#panelClose{margin-bottom:12px}}
+@media(max-width:999.98px){#panel{position:fixed;inset:0 auto 0 0;z-index:30;width:min(360px,90vw);overflow:auto;background:var(--canvas);padding:12px;border-right:1px solid var(--border);transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility 0s .2s}#panel.open{transform:none;visibility:visible;transition:transform .2s}#panelClose{margin-bottom:12px}}
 .drop{display:block;border:1px dashed var(--border);border-radius:8px;padding:14px;text-align:center;cursor:pointer;font-weight:600;background:var(--surface-muted)}
 .drop.over{border-color:var(--accent)}
 .drop input{display:block;margin:8px auto 0;font-size:13px;max-width:100%}
@@ -124,7 +126,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
     </div>
   </section>
 </aside>
-<div>
+<div id="formCol">
 
 <form id="f" novalidate>
   <section class="panel">
@@ -146,7 +148,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
 
   <section id="credBox" class="panel">
     <h2>Credentials (optional)</h2>
-    <p class="callout is-warning">Credentials are saved as plain text in this browser's storage and in the run files on this computer. Use disposable test accounts on non production systems. Hiding a value on screen is not encryption. Fixed credentials chosen here win over any Authorization header an imported call carries.</p>
+    <p class="callout is-warning">Imported tokens are saved as plain text in this browser's storage, and credentials you type are written in plain text to the run files on this computer. Use disposable test accounts on non production systems. Hiding a value on screen is not encryption. Fixed credentials chosen here win over any Authorization header an imported call carries.</p>
     <label for="credType">How does the site check who you are?</label>
     <p class="hint" id="credType-help">Pick how the site knows which account is calling it.</p>
     <select id="credType" aria-describedby="credType-help">
@@ -237,12 +239,12 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
       <h3>Live graphs</h3>
       <label class="check"><input type="checkbox" id="grafana" aria-describedby="grafana-help grafana-warn"> Show live graphs in Grafana while the test runs</label>
       <p class="hint" id="grafana-help">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
-      <p class="callout is-warning" id="grafana-warn" hidden>Grafana is not reachable right now. Start Docker Desktop and run npm run grafana, or untick this.</p>
+      <p class="callout is-warning" id="grafana-warn" role="status" hidden>Grafana is not reachable right now. Start Docker Desktop and run npm run grafana, or untick this.</p>
     </details>
   </section>
 
   <ul id="ready" aria-live="polite"></ul>
-  <dl id="runSummary" class="panel" aria-live="polite" aria-label="Run summary"></dl>
+  <dl id="runSummary" class="panel" aria-label="Run summary"></dl>
   <label class="check"><input type="checkbox" id="own"> I own this system or have permission to load test it</label>
   <div class="actions">
     <button class="btn-primary" id="run" type="submit">Run test</button>
@@ -276,7 +278,7 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600}
   <ul class="hint">
     <li>Import a Postman collection, an OpenAPI 3 or Swagger 2 file (JSON), or a list of {method, path}.</li>
     <li>You can test at most 50 calls at once.</li>
-    <li>Credentials are saved as plain text in this browser's storage and in the run files on this computer.</li>
+    <li>Imported tokens are saved as plain text in this browser's storage; credentials you type are written in plain text to the run files on this computer.</li>
     <li>Live graphs need Grafana: start Docker Desktop, then run <code>npm run grafana</code> in the perf-studio folder.</li>
   </ul>
 </details>
@@ -576,7 +578,7 @@ function renderSummary(calls) {
     ['Calls selected', String(calls.length)],
     ['Kind of test', TYPES[testType][0]],
     ['Length and people', $('shape').textContent], // the describeShape line refreshShape wrote
-    ['Limits', limitsText()],
+    ['Limits', limitsText().replace(/^Limits: /, '')],
     ['Blocking issues', stops ? el('span', { className: 'crit' }, `${stops} blocking, see the list above`) : 'none'],
   ];
   $('runSummary').replaceChildren(...rows.flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, v)]));
@@ -729,7 +731,7 @@ function renderMetrics(run, running) {
     el('span', { className: 'metric-name' }, name),
     el('span', { className: 'metric-value' }, fmt(v, digits), ...(v == null ? [] : [' ', el('span', { className: 'metric-unit' }, unit)])),
     el('span', { className: 'metric-help' }, help),
-    ...extra.map((t) => el('span', { className: `metric-help${t === 'Over your limit' ? ' crit' : ''}` }, t)),
+    ...extra.map((t) => el('span', { className: `metric-help${t.startsWith('Over your limit') ? ' crit' : ''}` }, t)),
   );
   const slowOver = running && lim.p95Ms != null && m.p95SoFarMs != null && m.p95SoFarMs > lim.p95Ms;
   const failOver = running && lim.errorPct != null && m.failPct != null && m.failPct > lim.errorPct;
@@ -745,7 +747,7 @@ function renderMetrics(run, running) {
     ], slowOver),
     tile('Failed requests', m.failPct, 1, '%', `Share of requests that failed ${last}.`, [
       ...(lim.errorPct == null ? [] : [`Your limit: ${lim.errorPct}%`]),
-      ...(failOver ? ['Over your limit'] : []),
+      ...(failOver ? ['Over your limit in this window'] : []),
     ], failOver),
   );
 }
@@ -767,6 +769,40 @@ async function loadHistory() {
 // ---- start ----
 document.head.prepend(el('style', { textContent: THEME_CSS })); // first, so the page's own rules win
 document.head.append(el('style', { textContent: CHART_CSS }));
+// ---- shell: endpoint drawer (small screens), help, Grafana status. Set up before defaults load, so neither waits on it. ----
+const panel = $('panel');
+const wide = matchMedia('(min-width:1000px)');
+// While the drawer covers the form on small screens, the form column is inert so Tab cannot reach hidden fields.
+const setPanel = (open) => {
+  panel.classList.toggle('open', open);
+  $('panelToggle').setAttribute('aria-expanded', String(open));
+  $('formCol').inert = open && !wide.matches;
+};
+const closePanel = () => { setPanel(false); $('panelToggle').focus(); };
+$('panelToggle').onclick = () => {
+  const open = !panel.classList.contains('open');
+  setPanel(open);
+  if (open) $('panelClose').focus();
+};
+$('panelClose').onclick = closePanel;
+wide.addEventListener('change', () => { if (wide.matches) setPanel(false); });
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && panel.classList.contains('open')) closePanel(); });
+$('helpLink').onclick = () => { $('help').open = true; };
+let grafanaUp = false;
+const grafanaWarn = () => { $('grafana-warn').hidden = !$('grafana').checked || grafanaUp; };
+async function grafanaStatus() {
+  if (document.hidden) return; // a background tab need not poll; visibilitychange refreshes on return
+  try { grafanaUp = (await (await fetch('/api/grafana-status')).json()).available === true; } catch { grafanaUp = false; }
+  const b = $('hdrGrafana');
+  b.textContent = grafanaUp ? 'Live graphs available' : 'Live graphs unavailable';
+  b.className = `badge ${grafanaUp ? 'is-passed' : 'is-off'}`;
+  b.title = grafanaUp ? '' : 'Start Docker Desktop, then run npm run grafana';
+  grafanaWarn();
+}
+$('grafana').addEventListener('change', grafanaWarn);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) grafanaStatus(); });
+grafanaStatus();
+setInterval(grafanaStatus, 10000);
 defaults = await (await fetch('/api/defaults')).json();
 renderTypes();
 addEndpoint({ isDefault: true });
@@ -855,31 +891,6 @@ $('checkBtn').onclick = async () => {
     $('checkBtn').disabled = false;
   }
 };
-// ---- shell: endpoint drawer (small screens), help, Grafana status ----
-const panel = $('panel');
-const setPanel = (open) => { panel.classList.toggle('open', open); $('panelToggle').setAttribute('aria-expanded', String(open)); };
-const closePanel = () => { setPanel(false); $('panelToggle').focus(); };
-$('panelToggle').onclick = () => {
-  const open = !panel.classList.contains('open');
-  setPanel(open);
-  if (open) $('panelClose').focus();
-};
-$('panelClose').onclick = closePanel;
-document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && panel.classList.contains('open')) closePanel(); });
-$('helpLink').onclick = () => { $('help').open = true; };
-let grafanaUp = false;
-const grafanaWarn = () => { $('grafana-warn').hidden = !$('grafana').checked || grafanaUp; };
-async function grafanaStatus() {
-  try { grafanaUp = (await (await fetch('/api/grafana-status')).json()).available === true; } catch { grafanaUp = false; }
-  const b = $('hdrGrafana');
-  b.textContent = grafanaUp ? 'Live graphs available' : 'Live graphs unavailable';
-  b.className = `badge ${grafanaUp ? 'is-passed' : 'is-off'}`;
-  b.title = grafanaUp ? '' : 'Start Docker Desktop, then run npm run grafana';
-  grafanaWarn();
-}
-$('grafana').addEventListener('change', grafanaWarn);
-grafanaStatus();
-setInterval(grafanaStatus, 10000);
 refreshSetup();
 loadHistory();
 </script>
