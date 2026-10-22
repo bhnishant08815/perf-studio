@@ -15,7 +15,10 @@ test('the real refused login run is explained in plain words', { skip }, () => {
   const summary = read('summary.json');
   const r = explainRun({ cfg, summary });
   assert.equal(r.headline, 'Nearly every request was refused by the site, so this test could not measure real speed.');
-  assert.equal(r.found[0], 'You asked for fewer than 1% of requests to fail. 100% failed.');
+  // The real cause: the address was typed with /login, so every call went to the wrong place.
+  assert.equal(r.found[0], 'Your website address includes "/login", so calls went to https://hire-uat.fly.dev/login/api/auth/login.');
+  assert.equal(r.found[1], 'You asked for fewer than 1% of requests to fail. 100% failed.');
+  assert.equal(r.next[0], 'Change the website address to just https://hire-uat.fly.dev, then run again.');
 
   const run = { ...read('run.json'), config: cfg };
   const html = buildReport({ run, summary, timeline: [], previous: undefined });
