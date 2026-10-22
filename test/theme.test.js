@@ -19,3 +19,7 @@ test('print forces light tokens', () => {
 test('respects reduced motion', () => {
   assert.ok(THEME_CSS.includes('prefers-reduced-motion'));
 });
+
+test('.num stays right aligned inside table.data', () => {
+  assert.match(THEME_CSS, /table\.data \.num\{[^}]*text-align:right/);
+});
