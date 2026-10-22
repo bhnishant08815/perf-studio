@@ -92,7 +92,7 @@ test('serves the page and the shared browser modules, nothing else from lib', as
   const page = await call('GET', '/');
   assert.equal(page.status, 200);
   assert.match(page.text, /<title>Perf Studio<\/title>/);
-  for (const f of ['config', 'form', 'stages', 'importers', 'charts', 'explain', 'fill', 'setup']) assert.equal((await call('GET', `/lib/${f}.js`)).status, 200);
+  for (const f of ['config', 'form', 'stages', 'importers', 'charts', 'explain', 'fill', 'setup', 'theme']) assert.equal((await call('GET', `/lib/${f}.js`)).status, 200);
   assert.match((await call('GET', '/lib/explain.js')).text, /export function explainRun/);
   assert.match((await call('GET', '/lib/setup.js')).text, /export function checkSetup/);
   assert.equal((await call('GET', '/lib/runner.js')).status, 404);

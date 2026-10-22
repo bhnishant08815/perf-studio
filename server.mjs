@@ -21,6 +21,7 @@ const STATIC = {
   '/lib/explain.js': ['lib/explain.js', 'text/javascript'],
   '/lib/fill.js': ['lib/fill.js', 'text/javascript'],
   '/lib/setup.js': ['lib/setup.js', 'text/javascript'],
+  '/lib/theme.js': ['lib/theme.js', 'text/javascript'],
 };
 
 export function createServer({ manager, port, root = import.meta.dirname }) {
