@@ -43,6 +43,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var
 table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
 pre{white-space:pre-wrap;font-size:12px;background:var(--bg);padding:8px;border-radius:8px;max-height:200px;overflow:auto}
 details{margin-top:10px}summary{cursor:pointer;font-weight:600}
+#adv{margin-top:0}#adv h3{font-size:15px;margin:16px 0 6px}
 @media(max-width:520px){.ep .row{grid-template-columns:1fr}}
 .layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
 .layout>*{min-width:0}
@@ -96,7 +97,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 
 <form id="f" novalidate>
   <section>
-    <h2>1. What do you want to test?</h2>
+    <h2>Website and calls</h2>
     <label for="baseUrl">Website address</label>
     <input id="baseUrl" type="url" placeholder="https://example.com" autocomplete="off">
     <p class="hint" id="baseNote"></p>
@@ -160,36 +161,37 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
   </section>
 
   <section>
-    <h2>2. What kind of test?</h2>
+    <h2>Kind of test</h2>
     <div id="types" class="cards" role="radiogroup" aria-label="Kind of test"></div>
-  </section>
-
-  <section>
-    <h2>3. How much traffic?</h2>
-    <div class="grid">
-      <div><label for="peakUsers">People at the same time</label><input id="peakUsers" type="number" min="1"></div>
-      <div><label for="rampUpS">Time to build up (seconds)</label><input id="rampUpS" type="number" min="0"></div>
-      <div><label for="holdS">Time at full traffic (seconds)</label><input id="holdS" type="number" min="0"></div>
-      <div><label for="rampDownS">Time to wind down (seconds)</label><input id="rampDownS" type="number" min="0"></div>
-      <div><label for="thinkTimeS">Pause between actions (seconds)</label><input id="thinkTimeS" type="number" min="0" step="0.5" value="1"></div>
-    </div>
-    <div id="stepsBox" hidden><label for="stressSteps">Steps, as a share of the people above</label><input id="stressSteps" type="text" value="0.5, 1, 1.5, 2"></div>
     <p class="shape" id="shape" aria-live="polite"></p>
   </section>
 
   <section>
-    <h2>4. What counts as good? (optional)</h2>
-    <div class="grid">
-      <div><label for="p95Ms">Slowest 1 in 20 visits should be under (milliseconds)</label><input id="p95Ms" type="number" min="1" value="1000"></div>
-      <div><label for="errorPct">Failed requests should stay under (percent)</label><input id="errorPct" type="number" min="0" step="0.1" value="1"></div>
-    </div>
-    <p class="hint">Clear a box to set no limit for it. With no limits the test never fails or stops early because of speed or errors.</p>
-  </section>
+    <p class="hint" id="advLine" style="margin:0"></p>
+    <details id="adv">
+      <summary>Advanced: people, time, limits, graphs</summary>
 
-  <section>
-    <h2>5. Live graphs</h2>
-    <label style="font-weight:400"><input type="checkbox" id="grafana"> Show live graphs in Grafana while the test runs</label>
-    <p class="hint">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
+      <h3>How much traffic?</h3>
+      <div class="grid">
+        <div><label for="peakUsers">People at the same time</label><input id="peakUsers" type="number" min="1"></div>
+        <div><label for="rampUpS">Time to build up (seconds)</label><input id="rampUpS" type="number" min="0"></div>
+        <div><label for="holdS">Time at full traffic (seconds)</label><input id="holdS" type="number" min="0"></div>
+        <div><label for="rampDownS">Time to wind down (seconds)</label><input id="rampDownS" type="number" min="0"></div>
+        <div><label for="thinkTimeS">Pause between actions (seconds)</label><input id="thinkTimeS" type="number" min="0" step="0.5" value="1"></div>
+      </div>
+      <div id="stepsBox" hidden><label for="stressSteps">Steps, as a share of the people above</label><input id="stressSteps" type="text" value="0.5, 1, 1.5, 2"></div>
+
+      <h3>What counts as good? (optional)</h3>
+      <div class="grid">
+        <div><label for="p95Ms">Slowest 1 in 20 visits should be under (milliseconds)</label><input id="p95Ms" type="number" min="1" value="1000"></div>
+        <div><label for="errorPct">Failed requests should stay under (percent)</label><input id="errorPct" type="number" min="0" step="0.1" value="1"></div>
+      </div>
+      <p class="hint">Clear a box to set no limit for it. With no limits the test never fails or stops early because of speed or errors.</p>
+
+      <h3>Live graphs</h3>
+      <label style="font-weight:400"><input type="checkbox" id="grafana"> Show live graphs in Grafana while the test runs</label>
+      <p class="hint">Needs Grafana running: open a terminal in the perf-studio folder and run <code>npm run grafana</code>.</p>
+    </details>
   </section>
 
   <ul id="ready" aria-live="polite"></ul>
@@ -491,7 +493,18 @@ function shapeInput() {
   const steps = $('stressSteps').value.split(',').map((x) => Number(x.trim())).filter((x) => x > 0);
   return { testType, peakUsers: n('peakUsers') || 1, rampUpS: n('rampUpS') || 0, holdS: n('holdS') || 0, rampDownS: n('rampDownS') || 0, stressSteps: steps.length ? steps : undefined };
 }
-const refreshShape = () => ($('shape').textContent = describeShape(shapeInput()));
+const limitsText = () => {
+  const p = $('p95Ms').value.trim();
+  const e = $('errorPct').value.trim();
+  if (p === '' && e === '') return 'No limits.';
+  return `Limits: ${[p !== '' && `slowest 1 in 20 under ${p} ms`, e !== '' && `failed requests under ${e}%`].filter(Boolean).join(', ')}.`;
+};
+// The one line under the test cards, and the same line (plus limits) shown while Advanced is closed.
+const refreshShape = () => {
+  const shape = describeShape(shapeInput());
+  $('shape').textContent = shape;
+  $('advLine').textContent = `${shape.replace(/\.$/, '')}. ${limitsText()}`;
+};
 
 function pickType(t) {
   testType = t;
@@ -640,7 +653,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(STORE) ?? 'null');
   if (saved?.imported) { loadImport(saved.imported, saved.selected ?? []); renderImportedEps(); }
 } catch { /* nothing saved or storage blocked */ }
-for (const id of ['peakUsers', 'rampUpS', 'holdS', 'rampDownS', 'stressSteps']) $(id).addEventListener('input', refreshShape);
+for (const id of ['peakUsers', 'rampUpS', 'holdS', 'rampDownS', 'stressSteps', 'p95Ms', 'errorPct']) $(id).addEventListener('input', refreshShape);
 // An eye button on every password box, so a typo in a test account can be spotted.
 const EYE = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';

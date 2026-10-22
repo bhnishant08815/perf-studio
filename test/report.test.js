@@ -130,6 +130,8 @@ test('limits section says what was allowed and the glossary explains a limit', (
   assert.ok(html.includes('Failed requests: 100.00%. You allowed up to 1%.'));
   assert.ok(html.includes('Slowest 1 in 20 visits: 344 ms. You allowed up to 1000 ms.'));
   assert.ok(html.includes('<dt>Limit</dt>'));
+  assert.ok(html.includes('A line you set under Advanced, "What counts as good".'));
+  assert.ok(!html.includes('step 4'));
   assert.ok(html.includes('<dt>Refused request (4xx)</dt>'));
 });
 

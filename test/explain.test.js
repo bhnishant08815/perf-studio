@@ -100,6 +100,7 @@ test('no limits and a mixed run: never says "handled", and names the refused cal
   assert.equal(r.headline, NOT_JUDGED);
   assert.ok(r.found.includes('Login: every request was refused (answer type 4xx).'));
   assert.doesNotMatch(JSON.stringify(r), /handled/);
+  assert.ok(r.next.includes('To have failures judged, set a limit for them under Advanced, "What counts as good".'));
 });
 
 test('only a speed limit set and some failures: says failures were not judged', () => {
@@ -125,6 +126,7 @@ test('a small share of refused requests still reads as coping', () => {
     summary: sum({ requests: 100, failPct: 10, endpoints: [ep('Login', classes({ '4xx': 10, '2xx': 90 }), { failPct: 10 })], limits: limits({ actual: 300, ok: true }, { actual: 10, ok: false }) }),
   });
   assert.equal(r.headline, 'The site coped, but more requests failed than you allowed.');
+  assert.ok(r.next.includes('If failures are expected, raise the limit under Advanced, "What counts as good".'));
 });
 
 test('an expected 4xx answer is not a refusal', () => {

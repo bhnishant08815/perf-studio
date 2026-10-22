@@ -64,6 +64,7 @@ test('a Breakpoint test needs at least one limit, or it never stops early', () =
   const none = validateConfig(bp({ p95Ms: null, errorPct: null }));
   assert.equal(none.ok, false);
   assert.ok(none.errors.some((e) => e.includes('Breakpoint')), JSON.stringify(none.errors));
+  assert.ok(none.errors.some((e) => e.includes('Advanced')), 'points at the Advanced section, not a step number');
   assert.equal(validateConfig(bp({ p95Ms: null, errorPct: 5 })).ok, true);
   assert.equal(validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: null } }).ok, true, 'other test types may have no limits');
 });

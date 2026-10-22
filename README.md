@@ -7,7 +7,7 @@ A local page to run load tests with k6 and watch them live in Grafana. No npm pa
 
 ## Use
 1. `npm start`, then open http://localhost:4173
-2. Import your API list in the left panel (or type calls by hand), tick the calls to test, pick a test type, set the traffic, tick the permission box, press **Run test**.
+2. Import your API list in the left panel (or type calls by hand), tick the calls to test, fill in any values the page asks for, choose how the site signs you in (Credentials), pick a test type, tick the permission box, optionally press **Check the first call**, then **Run test**. People, time, limits and live graphs are under **Advanced** (closed by default; the line above it shows what they are set to).
 3. Optional live graphs: start Docker Desktop, run `npm run grafana` once, tick "Show live graphs", then use the link on the status panel (Grafana is at http://localhost:3000).
 4. Stop the graphs stack with `docker compose -f grafana/docker-compose.yml down`.
 
