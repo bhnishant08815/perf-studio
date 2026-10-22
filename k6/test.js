@@ -28,13 +28,17 @@ cfg.endpoints.forEach((_, i) => {
   for (const cls of CLASSES) tracking[`status_class{ep:${epId(i)},cls:${cls}}`] = ['count>=0'];
 });
 
+// A limit left empty (null) gets no rule, so k6 never judges or aborts on it.
+const errRule = cfg.thresholds.errorPct === null ? null : `rate<=${cfg.thresholds.errorPct / 100}`;
+const p95Rule = cfg.thresholds.p95Ms === null ? null : `p(95)<${cfg.thresholds.p95Ms}`;
+
 export const options = {
   scenarios: {
     users: { executor: 'ramping-vus', startVUs: cfg.testType === 'smoke' ? 1 : 0, stages: buildStages(cfg), gracefulRampDown: '10s', gracefulStop: '10s' },
   },
   thresholds: {
-    http_req_failed: [{ threshold: `rate<=${cfg.thresholds.errorPct / 100}`, ...abort }],
-    http_req_duration: [{ threshold: `p(95)<${cfg.thresholds.p95Ms}`, ...abort }],
+    ...(errRule && { http_req_failed: [{ threshold: errRule, ...abort }] }),
+    ...(p95Rule && { http_req_duration: [{ threshold: p95Rule, ...abort }] }),
     ...tracking,
   },
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
@@ -119,8 +123,8 @@ export function handleSummary(data) {
     dataSentBytes: m.data_sent?.values.count ?? 0,
     endpoints,
     limits: [
-      { what: 'p95', limit: cfg.thresholds.p95Ms, actual: dur['p(95)'] ?? 0, ok: ruleOk(m.http_req_duration, `p(95)<${cfg.thresholds.p95Ms}`) },
-      { what: 'errors', limit: cfg.thresholds.errorPct, actual: failPct, ok: ruleOk(m.http_req_failed, `rate<=${cfg.thresholds.errorPct / 100}`) },
+      ...(p95Rule ? [{ what: 'p95', limit: cfg.thresholds.p95Ms, actual: dur['p(95)'] ?? 0, ok: ruleOk(m.http_req_duration, p95Rule) }] : []),
+      ...(errRule ? [{ what: 'errors', limit: cfg.thresholds.errorPct, actual: failPct, ok: ruleOk(m.http_req_failed, errRule) }] : []),
     ],
   };
   return {

@@ -72,6 +72,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     <label class="drop" id="drop">Choose a file or drop it here<input id="importFile" type="file" accept=".json,application/json"></label>
     <details><summary>Or paste JSON</summary><textarea id="importText" aria-label="Paste JSON to import"></textarea><button type="button" id="importBtn">Import</button></details>
     <p id="importInfo" class="hint" aria-live="polite"></p>
+    <button type="button" id="reset" hidden>Reset import</button>
     <details id="importWarnBox" hidden><summary id="importWarnSum"></summary><ul id="importWarn" class="hint"></ul></details>
     <div id="pickArea" hidden>
       <label for="search">Search calls</label>
@@ -125,11 +126,12 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
   </section>
 
   <section>
-    <h2>4. What counts as good?</h2>
+    <h2>4. What counts as good? (optional)</h2>
     <div class="grid">
       <div><label for="p95Ms">Slowest 1 in 20 visits should be under (milliseconds)</label><input id="p95Ms" type="number" min="1" value="1000"></div>
       <div><label for="errorPct">Failed requests should stay under (percent)</label><input id="errorPct" type="number" min="0" step="0.1" value="1"></div>
     </div>
+    <p class="hint">Clear a box to set no limit for it. With no limits the test never fails or stops early because of speed or errors.</p>
   </section>
 
   <section>
@@ -255,7 +257,20 @@ function loadImport(result, keepSelection = []) {
     $('baseNote').textContent = 'Filled in from the imported file. Change it if you test another environment.';
   }
   $('pickArea').hidden = false;
+  $('reset').hidden = false;
   renderPanel();
+}
+
+function resetImport() {
+  imported = null;
+  selected.clear();
+  try { localStorage.removeItem(STORE); } catch { /* storage unavailable: nothing to clear */ }
+  for (const id of ['importInfo', 'selCount', 'importText', 'search']) { $(id).textContent = ''; $(id).value = ''; }
+  $('importWarn').replaceChildren();
+  for (const id of ['importWarnBox', 'pickArea', 'reset']) $(id).hidden = true;
+  $('groups').replaceChildren();
+  renderImportedEps();
+  if (!$('endpoints').children.length) addEndpoint({ isDefault: true }); // restore the row import removed
 }
 
 function doImport(text) {
@@ -372,6 +387,7 @@ function renderTypes() {
 // ---- build and send the config ----
 function readConfig() {
   const n = (id) => Number($(id).value);
+  const optional = (id) => ($(id).value.trim() === '' ? null : n(id)); // empty box = no limit
   const cfg = {
     baseUrl: $('baseUrl').value.trim(),
     testType,
@@ -380,7 +396,7 @@ function readConfig() {
     holdS: n('holdS'),
     rampDownS: n('rampDownS'),
     thinkTimeS: n('thinkTimeS'),
-    thresholds: { p95Ms: n('p95Ms'), errorPct: n('errorPct') },
+    thresholds: { p95Ms: optional('p95Ms'), errorPct: optional('errorPct') },
     endpoints: readEndpoints(),
     grafana: { enabled: $('grafana').checked },
     ownershipConfirmed: $('own').checked,
@@ -490,6 +506,7 @@ for (const id of ['peakUsers', 'rampUpS', 'holdS', 'rampDownS', 'stressSteps']) 
 $('addEp').onclick = () => addEndpoint();
 $('f').addEventListener('submit', submit);
 $('stop').onclick = async () => { if (current) await fetch(`/api/runs/${current.id}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); };
+$('reset').onclick = resetImport;
 loadHistory();
 </script>
 </body>

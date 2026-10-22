@@ -59,6 +59,20 @@ test('impossible threshold marks run failed', { skip }, async () => {
   assert.equal(r.summary.passed, false);
 });
 
+test('no limits set: a slow call still passes and no limits are recorded', { skip }, async () => {
+  const r = await runK6({ endpoints: [{ method: 'GET', path: '/slow' }], thresholds: { p95Ms: null, errorPct: null } });
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.summary.passed, true);
+  assert.deepEqual(r.summary.limits, []);
+  assert.ok(r.summary.requests > 0 && r.summary.endpoints[0].p95Ms > 0);
+});
+
+test('only one limit set: just that one is judged', { skip }, async () => {
+  const r = await runK6({ endpoints: [{ method: 'GET', path: '/slow' }], thresholds: { p95Ms: 1, errorPct: null } });
+  assert.equal(r.code, 99, r.out);
+  assert.deepEqual(r.summary.limits.map((l) => l.what), ['p95']);
+});
+
 test('errorPct 0 passes when nothing fails', { skip }, async () => {
   const r = await runK6({ endpoints: [{ method: 'GET', path: '/ok' }], thresholds: { p95Ms: 5000, errorPct: 0 } });
   assert.equal(r.code, 0, r.out);

@@ -123,6 +123,15 @@ test('cards graded by your limits say so, instead of a bare Good', () => {
   assert.ok(!okCard.includes('>Good<'));
 });
 
+test('with no limits set, nothing is judged against a limit', () => {
+  const none = { p95Ms: null, errorPct: null };
+  const html = buildReport({ run: run({ config: { ...run().config, thresholds: none } }), summary: summary({ failPct: 33, passed: true, limits: [] }), timeline, previous: undefined });
+  assert.ok(!html.includes('Over your limit') && !html.includes('Within your limit'));
+  assert.ok(html.includes('You set no limits for this run.'));
+  assert.ok(!html.includes('met your limits'));
+  assert.ok(!html.includes('class="bad">33.00%'), 'a failure rate is not flagged without a limit');
+});
+
 test('status legend lists only the answers that happened', () => {
   const html = buildReport({ run: run(), summary: summary(), timeline, previous: undefined });
   assert.ok(html.includes('Worked (2xx)'));

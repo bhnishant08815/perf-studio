@@ -18,6 +18,13 @@ const rejects = (mutate, field) => {
   assert.ok(r.errors.some((e) => e.includes(field)), `expected an error naming "${field}", got ${JSON.stringify(r.errors)}`);
 };
 
+test('limits are optional: null means no limit, each one independently', () => {
+  const r = validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: 5 } });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.config.thresholds, { p95Ms: null, errorPct: 5 });
+  assert.deepEqual(validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: null } }).config.thresholds, { p95Ms: null, errorPct: null });
+});
+
 test('valid config passes, trailing slash is stripped, defaults applied', () => {
   const r = validateConfig(good());
   assert.equal(r.ok, true);
