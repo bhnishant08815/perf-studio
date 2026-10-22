@@ -59,6 +59,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 .warn{color:var(--ok);grid-column:3;font-size:12px}
 .limit{color:var(--bad);font-weight:600}
 .chip{grid-column:3;justify-self:start;font-size:11px;padding:0 6px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}.chip.bad{color:var(--bad);border-color:var(--bad)}
+#checkOut.good{color:var(--good)}#checkOut.bad{color:var(--bad)}
 #ready{list-style:none;margin:12px 0 0;padding:0}#ready li{display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-left:4px solid var(--ok);padding:6px 10px;margin-bottom:6px;font-size:14px}
 #ready li.stop{border-left-color:var(--bad)}#ready li button{padding:2px 10px}
 #valueBoxes{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:0 12px}
@@ -196,7 +197,9 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
   <div class="actions">
     <button class="primary" id="run" type="submit">Run test</button>
     <button id="stop" type="button" disabled>Stop test</button>
+    <button id="checkBtn" type="button">Check the first call</button>
   </div>
+  <p id="checkOut" class="hint" aria-live="polite"></p>
   <ul id="errors" role="alert"></ul>
 </form>
 
@@ -670,6 +673,31 @@ $('addEp').onclick = () => { addEndpoint(); refreshSetup(); };
 $('f').addEventListener('submit', submit);
 $('stop').onclick = async () => { if (current) await fetch(`/api/runs/${current.id}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); };
 $('reset').onclick = resetImport;
+// One real request, so the address, sign in and values can be proven before a load test.
+$('checkBtn').onclick = async () => {
+  const out = $('checkOut');
+  const say = (text, cls = 'hint') => { out.textContent = text; out.className = cls; };
+  if (!$('own').checked) return say('Tick the permission box first.');
+  let cfg;
+  try { cfg = readConfig(); } catch (e) { return say(e.message, 'bad'); }
+  const first = cfg.endpoints[0];
+  if (!first) return say('Add a page or API call first.');
+  if (allPlaceholders([first]).length) return say(`The first call still needs a value: ${allPlaceholders([first]).join(', ')}.`, 'bad');
+  const body = { baseUrl: cfg.baseUrl, endpoints: [first], ownershipConfirmed: true, ...(cfg.auth ? { auth: cfg.auth } : {}), ...(cfg.credentials ? { credentials: cfg.credentials } : {}) };
+  $('checkBtn').disabled = true;
+  say('Checking...');
+  try {
+    const res = await fetch('/api/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json();
+    if (!res.ok) return say((d.errors ?? [d.error]).join(' '), 'bad');
+    const what = d.step === 'login' ? 'Login step: ' : '';
+    say(`${what}${d.status ? `${d.status} in ${d.ms} ms. ` : ''}${d.hint}`, d.ok ? 'good' : 'bad');
+  } catch {
+    say('Could not reach Perf Studio. Is it still running?', 'bad');
+  } finally {
+    $('checkBtn').disabled = false;
+  }
+};
 refreshSetup();
 loadHistory();
 </script>

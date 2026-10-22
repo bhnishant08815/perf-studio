@@ -2,6 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createServer } from '../server.mjs';
+import { startMock } from './mock-target.mjs';
 
 const busy = Object.assign(new Error('busy'), { code: 'BUSY' });
 const stub = { start: () => { throw busy; }, get: () => undefined, list: () => [], stop: async () => false, reportPath: () => undefined };
@@ -36,6 +37,23 @@ const goodBody = JSON.stringify({
   rampDownS: 0,
   endpoints: [{ method: 'GET', path: '/' }],
   ownershipConfirmed: true,
+});
+
+test('POST /api/check answers with a status and a hint, and refuses bad input', async () => {
+  const mock = await startMock();
+  try {
+    const ok = await call('POST', '/api/check', { type: 'application/json', body: JSON.stringify({ baseUrl: mock.url, endpoints: [{ method: 'GET', path: '/ok' }], ownershipConfirmed: true }) });
+    assert.equal(ok.status, 200);
+    assert.equal(ok.json().status, 200);
+    assert.equal(ok.json().ok, true);
+    const bad = await call('POST', '/api/check', { type: 'application/json', body: JSON.stringify({ baseUrl: mock.url, endpoints: [{ method: 'GET', path: '/ok', headers: { 'Bad Name': 'x' } }], ownershipConfirmed: true }) });
+    assert.equal(bad.status, 400);
+    assert.ok(bad.json().errors.some((m) => m.includes('headers')));
+    assert.equal((await call('POST', '/api/check', { type: 'application/json', body: 'nope' })).status, 400);
+    assert.equal((await call('POST', '/api/check', { host: 'evil.example', type: 'application/json', body: '{}' })).status, 403);
+  } finally {
+    await mock.close();
+  }
 });
 
 test('foreign Host header is rejected with 403', async () => {

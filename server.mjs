@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { LIMITS, PRESETS, TEST_TYPES, validateConfig } from './lib/config.js';
 import { RunManager } from './lib/runner.js';
+import { checkCall } from './lib/check.js';
 
 const ID_RE = /^[a-z0-9-]+$/;
 const MAX_BODY = 1_000_000;
@@ -48,18 +49,33 @@ export function createServer({ manager, port, root = import.meta.dirname }) {
       }
       if (req.method === 'GET' && path === '/api/runs') return send(200, manager.list());
 
-      if (req.method === 'POST' && path === '/api/runs') {
+      const readJson = async () => {
         let raw = '';
         for await (const chunk of req) {
           raw += chunk;
-          if (raw.length > MAX_BODY) return send(413, { errors: ['Request is too large'] });
+          if (raw.length > MAX_BODY) return { code: 413, errors: ['Request is too large'] };
         }
-        let body;
         try {
-          body = JSON.parse(raw);
+          return { body: JSON.parse(raw) };
         } catch {
-          return send(400, { errors: ['Body must be valid JSON'] });
+          return { code: 400, errors: ['Body must be valid JSON'] };
         }
+      };
+
+      if (req.method === 'POST' && path === '/api/check') {
+        const { body, code, errors } = await readJson();
+        if (errors) return send(code, { errors });
+        try {
+          return send(200, await checkCall(body));
+        } catch (e) {
+          if (e.errors) return send(400, { errors: e.errors });
+          throw e;
+        }
+      }
+
+      if (req.method === 'POST' && path === '/api/runs') {
+        const { body, code, errors } = await readJson();
+        if (errors) return send(code, { errors });
         const v = validateConfig(body);
         if (!v.ok) return send(400, { errors: v.errors });
         try {
