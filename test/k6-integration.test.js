@@ -79,6 +79,24 @@ test('errorPct 0 passes when nothing fails', { skip }, async () => {
   assert.equal(r.summary.passed, true);
 });
 
+test('credentials reach the site: bearer, api key and basic', { skip }, async () => {
+  for (const [path, credentials] of [
+    ['/secure', { type: 'bearer', token: 't1' }],
+    ['/key', { type: 'apikey', header: 'X-Api-Key', value: 'k1' }],
+    ['/basic', { type: 'basic', username: 'user', password: 'pa:ss' }],
+  ]) {
+    const r = await runK6({ endpoints: [{ method: 'GET', path }], credentials });
+    assert.equal(r.code, 0, `${credentials.type}: ${r.out}`);
+    assert.equal(r.summary.failPct, 0, credentials.type);
+  }
+});
+
+test('wrong credentials are refused by the site, so the run fails', { skip }, async () => {
+  const r = await runK6({ endpoints: [{ method: 'GET', path: '/secure' }], credentials: { type: 'bearer', token: 'nope' } });
+  assert.equal(r.code, 99, r.out);
+  assert.equal(r.summary.failPct, 100);
+});
+
 test('auth token is sent', { skip }, async () => {
   const r = await runK6({
     auth: { path: '/login', body: { user: 'u' }, tokenField: 'access_token' },

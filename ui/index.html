@@ -96,16 +96,54 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
     <div id="importedEps"></div>
     <div id="endpoints"></div>
     <button type="button" id="addEp">Add another page or API call</button>
-    <details id="loginBox">
-      <summary>This site needs a login first (optional)</summary>
+  </section>
+
+  <section id="credBox">
+    <h2>Credentials (optional)</h2>
+    <label for="credType">How does the site check who you are?</label>
+    <select id="credType">
+      <option value="none">It does not, no sign in needed</option>
+      <option value="login">A login call first</option>
+      <option value="bearer">A token I already have (Bearer)</option>
+      <option value="apikey">An API key</option>
+      <option value="basic">Username and password (Basic)</option>
+    </select>
+    <div data-cred="login" hidden>
       <label for="loginPath">Login address</label>
       <input id="loginPath" type="text" placeholder="/api/login">
-      <label for="loginBody">Login details (JSON)</label>
-      <textarea id="loginBody" placeholder='{"email":"test@example.com","password":"..."}'></textarea>
-      <p class="hint">Use a test account, never a real person's password. These details are saved in plain text on this computer.</p>
+      <label for="loginUser">Email or username</label>
+      <input id="loginUser" type="text" placeholder="test@example.com" autocomplete="off">
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="off">
       <label for="tokenField">Name of the token in the reply</label>
       <input id="tokenField" type="text" value="access_token">
-    </details>
+      <details>
+        <summary>Advanced: field names and extra details</summary>
+        <label for="loginUserField">Field name for the email or username</label>
+        <input id="loginUserField" type="text" value="email" autocomplete="off">
+        <label for="loginPassField">Field name for the password</label>
+        <input id="loginPassField" type="text" value="password" autocomplete="off">
+        <label for="loginBody">Extra details to send (JSON, optional)</label>
+        <textarea id="loginBody" placeholder='{"remember": true}'></textarea>
+      </details>
+    </div>
+    <div data-cred="bearer" hidden>
+      <label for="credToken">Token</label>
+      <input id="credToken" type="password" autocomplete="off">
+    </div>
+    <div data-cred="apikey" hidden>
+      <label for="credHeader">Header name</label>
+      <input id="credHeader" type="text" value="X-Api-Key" autocomplete="off">
+      <label for="credValue">API key</label>
+      <input id="credValue" type="password" autocomplete="off">
+    </div>
+    <div data-cred="basic" hidden>
+      <label for="credUser">Username</label>
+      <input id="credUser" type="text" autocomplete="off">
+      <label for="credPass">Password</label>
+      <input id="credPass" type="password" autocomplete="off">
+    </div>
+    <p class="hint">Sent with every call in the test. Use a test account, never a real person's details. They are saved in plain text on this computer and never shown in the report.</p>
   </section>
 
   <section>
@@ -412,13 +450,20 @@ function readConfig() {
   };
   const steps = shapeInput().stressSteps;
   if (steps) cfg.stressSteps = steps;
-  if ($('loginPath').value.trim()) {
+  const kind = $('credType').value;
+  if (kind === 'login') {
     let body = {};
     if ($('loginBody').value.trim()) {
-      try { body = JSON.parse($('loginBody').value); } catch { throw new Error('Login details must be valid JSON, for example {"email":"a@b.com","password":"x"}'); }
+      try { body = JSON.parse($('loginBody').value); } catch { throw new Error('Extra login details must be valid JSON, for example {"remember": true}'); }
+      if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Extra login details must be a JSON object, for example {"remember": true}');
     }
+    // The typed boxes win over the same field in the extra JSON.
+    if ($('loginUser').value) body[$('loginUserField').value.trim() || 'email'] = $('loginUser').value;
+    if ($('loginPass').value) body[$('loginPassField').value.trim() || 'password'] = $('loginPass').value;
     cfg.auth = { path: $('loginPath').value.trim(), body, tokenField: $('tokenField').value.trim() };
-  }
+  } else if (kind === 'bearer') cfg.credentials = { type: 'bearer', token: $('credToken').value.trim() };
+  else if (kind === 'apikey') cfg.credentials = { type: 'apikey', header: $('credHeader').value.trim(), value: $('credValue').value.trim() };
+  else if (kind === 'basic') cfg.credentials = { type: 'basic', username: $('credUser').value, password: $('credPass').value };
   return cfg;
 }
 
@@ -516,6 +561,9 @@ try {
   if (saved?.imported) { loadImport(saved.imported, saved.selected ?? []); renderImportedEps(); }
 } catch { /* nothing saved or storage blocked */ }
 for (const id of ['peakUsers', 'rampUpS', 'holdS', 'rampDownS', 'stressSteps']) $(id).addEventListener('input', refreshShape);
+$('credType').onchange = () => {
+  for (const box of document.querySelectorAll('[data-cred]')) box.hidden = box.dataset.cred !== $('credType').value;
+};
 $('addEp').onclick = () => addEndpoint();
 $('f').addEventListener('submit', submit);
 $('stop').onclick = async () => { if (current) await fetch(`/api/runs/${current.id}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }); };

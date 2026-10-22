@@ -97,6 +97,19 @@ test('the top box escapes endpoint names', () => {
   assert.ok(top.includes('&lt;b&gt;x&lt;/b&gt; &amp; &quot;y&quot;'));
 });
 
+test('credentials show only their type in the report, never the secret', () => {
+  for (const [credentials, label] of [
+    [{ type: 'bearer', token: 'sekret-token-123' }, 'Bearer token'],
+    [{ type: 'apikey', header: 'X-Api-Key', value: 'sekret-token-123' }, 'API key'],
+    [{ type: 'basic', username: 'sekret-user', password: 'sekret-token-123' }, 'Username and password'],
+  ]) {
+    const html = buildReport({ run: run({ config: { ...run().config, credentials } }), summary: summary(), timeline, previous: undefined });
+    assert.ok(html.includes(`<td>Credentials</td><td>${label}</td>`), label);
+    assert.ok(!html.includes('sekret'), `${credentials.type} secret leaked`);
+  }
+  assert.ok(buildReport({ run: run(), summary: summary(), timeline, previous: undefined }).includes('<td>Credentials</td><td>None</td>'));
+});
+
 test('a stopped run says so at the top, and is neither Ready nor Not ready', () => {
   for (const passed of [true, false]) {
     const html = buildReport({ run: run({ status: 'stopped' }), summary: summary({ passed }), timeline, previous: undefined });

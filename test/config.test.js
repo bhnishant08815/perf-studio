@@ -25,6 +25,40 @@ test('limits are optional: null means no limit, each one independently', () => {
   assert.deepEqual(validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: null } }).config.thresholds, { p95Ms: null, errorPct: null });
 });
 
+const withCred = (credentials, extra = {}) => validateConfig({ ...good(), credentials, ...extra });
+
+test('credentials: each type is accepted and passed through unchanged', () => {
+  for (const c of [
+    { type: 'bearer', token: 'abc.def' },
+    { type: 'apikey', header: 'X-Api-Key', value: 'k1' },
+    { type: 'basic', username: 'user', password: 'pa:ss' },
+  ]) {
+    const r = withCred(c);
+    assert.equal(r.ok, true, JSON.stringify(r.errors));
+    assert.deepEqual(r.config.credentials, c);
+  }
+  assert.ok(!('credentials' in validateConfig(good()).config), 'no credentials key when none are given');
+  assert.ok(!('credentials' in withCred(null).config), 'null means none');
+});
+
+test('credentials: bad input is rejected with a message naming the field', () => {
+  const bad = (c, word, extra) => {
+    const r = withCred(c, extra);
+    assert.equal(r.ok, false);
+    assert.ok(r.errors.some((e) => e.includes(word)), `expected "${word}" in ${JSON.stringify(r.errors)}`);
+  };
+  bad({ type: 'oauth' }, 'credentials.type');
+  bad('token', 'credentials');
+  bad({ type: 'bearer', token: '' }, 'credentials.token');
+  bad({ type: 'bearer', token: 'a\r\nX-Evil: 1' }, 'credentials.token');
+  bad({ type: 'apikey', header: 'bad header', value: 'v' }, 'credentials.header');
+  bad({ type: 'apikey', header: 'X-Key', value: '' }, 'credentials.value');
+  bad({ type: 'basic', username: '', password: 'p' }, 'credentials.username');
+  bad({ type: 'basic', username: 'a:b', password: 'p' }, 'credentials.username');
+  bad({ type: 'basic', username: 'u', password: 5 }, 'credentials.password');
+  bad({ type: 'bearer', token: 't' }, 'either', { auth: { path: '/login', body: {}, tokenField: 't' } });
+});
+
 test('a Breakpoint test needs at least one limit, or it never stops early', () => {
   const bp = (thresholds) => ({ ...good(), testType: 'breakpoint', ...PRESETS.breakpoint, thresholds });
   const none = validateConfig(bp({ p95Ms: null, errorPct: null }));

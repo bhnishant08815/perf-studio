@@ -48,5 +48,6 @@ A local page to run load tests with k6 and watch them live in Grafana. No npm pa
 
 ## Safety
 - The server listens on this computer only.
-- Login details, headers and imported tokens are saved in plain text in `runs/` and in the browser's storage. Use test accounts only. The report never shows them.
+- **Credentials section:** pick no sign in, a login call, a Bearer token, an API key or Basic (username and password). The login call is the older "needs a login first" box, now inside this section. Fixed credentials are sent on every call and win over a header an imported call carries. The report shows only the type, never the value.
+- Login details, credentials, headers and imported tokens are saved in plain text in `runs/` and in the browser's storage. Use test accounts only. The report never shows them.
 - `npm test` runs all tests (the k6 ones need k6 installed).

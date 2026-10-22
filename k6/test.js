@@ -3,6 +3,7 @@
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { check, sleep } from 'k6';
+import encoding from 'k6/encoding';
 import { Counter } from 'k6/metrics';
 import { buildStages } from '../lib/stages.js';
 import { maskQuery } from '../lib/config.js';
@@ -18,6 +19,13 @@ const label = (e) => `${e.method} ${maskQuery(e.path)}`;
 const display = (e) => e.name || label(e);
 // Submetric selectors only ever use these generated ids, never user text (names may hold , : { } ").
 const epId = (i) => `e${i}`;
+
+// Fixed credentials become one header, set on every request (after the call's own headers, so they win).
+const cred = cfg.credentials;
+const credHeader = !cred ? null
+  : cred.type === 'bearer' ? ['Authorization', `Bearer ${cred.token}`]
+  : cred.type === 'basic' ? ['Authorization', `Basic ${encoding.b64encode(`${cred.username}:${cred.password}`)}`]
+  : [cred.header, cred.value];
 
 // Rules that always pass. They exist only so k6 reports these submetrics in handleSummary.
 const TRACKING = ['max>=0', 'rate>=0', 'count>=0'];
@@ -67,6 +75,7 @@ export default function (data) {
   cfg.endpoints.forEach((e, i) => {
     const headers = { ...e.headers };
     if (data.token) headers[cfg.auth.header] = `${cfg.auth.prefix}${data.token}`;
+    if (credHeader) headers[credHeader[0]] = credHeader[1];
     const body = e.body === undefined || e.body === '' ? null : e.body;
     const params = { headers, tags: { name: display(e), ep: epId(i) } };
     if (e.expectStatus) params.responseCallback = http.expectedStatuses(e.expectStatus);

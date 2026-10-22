@@ -12,6 +12,8 @@ export function startMock() {
     if (req.url === '/notfound') return send(404, {});
     if (req.url === '/slow') return void setTimeout(() => send(200, { slow: true }), 300);
     if (req.url === '/secure') return req.headers.authorization === 'Bearer t1' ? send(200, { ok: true }) : send(401, {});
+    if (req.url === '/key') return req.headers['x-api-key'] === 'k1' ? send(200, { ok: true }) : send(401, {});
+    if (req.url === '/basic') return req.headers.authorization === `Basic ${Buffer.from('user:pa:ss').toString('base64')}` ? send(200, { ok: true }) : send(401, {});
     if (req.url === '/login' && req.method === 'POST') {
       let raw = '';
       req.on('data', (c) => (raw += c));
