@@ -18,6 +18,8 @@ const limits = (p95, errors) => [
 ];
 
 const REFUSED = 'Nearly every request was refused by the site, so this test could not measure real speed.';
+const MANY_REFUSED = 'Many requests were refused by the site, so some calls are being turned away.';
+const NOT_JUDGED = 'Some requests failed. You set no limits, so this was not judged.';
 
 test('refused login, speed fine: says refused, names the call, says what to do', () => {
   const r = explainRun({
@@ -52,7 +54,7 @@ test('one endpoint refused, another fine: names only the refused one', () => {
       limits: limits({ actual: 300, ok: true }, { actual: 50, ok: false }),
     }),
   });
-  assert.equal(r.headline, 'The site coped, but more requests failed than you allowed.');
+  assert.equal(r.headline, MANY_REFUSED);
   assert.ok(r.found.includes('Login: every request was refused (answer type 4xx).'));
   assert.ok(!r.found.some((l) => l.includes('Home')));
   assert.equal(r.did, 'We sent up to 100 people at once to https://shop.test, visiting 2 pages or API calls.');
@@ -70,10 +72,53 @@ test('no limits set and some failures: never says missed or your limit', () => {
     cfg: cfg({ thresholds: { p95Ms: null, errorPct: null } }),
     summary: sum({ passed: true, requests: 100, failPct: 3, endpoints: [ep('A', classes({ '2xx': 97, '5xx': 3 }), { failPct: 3 })], limits: [] }),
   });
-  assert.equal(r.headline, 'The site handled this traffic. You set no limits, so nothing was judged.');
+  assert.equal(r.headline, NOT_JUDGED);
   const all = JSON.stringify(r);
   assert.doesNotMatch(all, /missed/);
   assert.doesNotMatch(all, /your limit/);
+});
+
+test('no limits and a mixed run: never says "handled", and names the refused call', () => {
+  const r = explainRun({
+    cfg: cfg({ thresholds: { p95Ms: null, errorPct: null } }),
+    summary: sum({ passed: true, requests: 200, failPct: 50, endpoints: [ep('Login', classes({ '4xx': 100 }), { failPct: 100 }), ep('Home', classes({ '2xx': 100 }))], limits: [] }),
+  });
+  assert.equal(r.headline, NOT_JUDGED);
+  assert.ok(r.found.includes('Login: every request was refused (answer type 4xx).'));
+  assert.doesNotMatch(JSON.stringify(r), /handled/);
+});
+
+test('only a speed limit set and some failures: says failures were not judged', () => {
+  const r = explainRun({
+    cfg: cfg({ thresholds: { p95Ms: 1000, errorPct: null } }),
+    summary: sum({ passed: true, requests: 200, failPct: 50, p95Ms: 300, endpoints: [ep('Login', classes({ '4xx': 100 }), { failPct: 100 }), ep('Home', classes({ '2xx': 100 }))], limits: [] }),
+  });
+  assert.equal(r.headline, 'The site stayed within your speed limit, but some requests failed and you set no limit for that.');
+  assert.ok(r.found.includes('Login: every request was refused (answer type 4xx).'));
+});
+
+test('just under the refused cut off is not described as coping', () => {
+  const r = explainRun({
+    cfg: cfg(),
+    summary: sum({ requests: 100, failPct: 89, endpoints: [ep('Login', classes({ '4xx': 89, '2xx': 11 }), { failPct: 89 })], limits: limits({ actual: 300, ok: true }, { actual: 89, ok: false }) }),
+  });
+  assert.equal(r.headline, MANY_REFUSED);
+});
+
+test('a small share of refused requests still reads as coping', () => {
+  const r = explainRun({
+    cfg: cfg(),
+    summary: sum({ requests: 100, failPct: 10, endpoints: [ep('Login', classes({ '4xx': 10, '2xx': 90 }), { failPct: 10 })], limits: limits({ actual: 300, ok: true }, { actual: 10, ok: false }) }),
+  });
+  assert.equal(r.headline, 'The site coped, but more requests failed than you allowed.');
+});
+
+test('an expected 4xx answer is not a refusal', () => {
+  const r = explainRun({
+    cfg: cfg({ endpoints: [{ method: 'GET', path: '/gone', expectStatus: 404 }] }),
+    summary: sum({ passed: true, requests: 100, failPct: 0, p95Ms: 200, endpoints: [ep('Gone', classes({ '4xx': 100 }), { failPct: 0 })], limits: limits({ actual: 200, ok: true }, { actual: 0, ok: true }) }),
+  });
+  assert.equal(r.headline, 'The site handled this traffic and met every limit you set.');
 });
 
 test('an old summary with no statusClasses or limits does not throw', () => {

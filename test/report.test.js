@@ -97,9 +97,19 @@ test('the top box escapes endpoint names', () => {
   assert.ok(top.includes('&lt;b&gt;x&lt;/b&gt; &amp; &quot;y&quot;'));
 });
 
-test('a stopped run says so at the top', () => {
-  const html = buildReport({ run: run({ status: 'stopped' }), summary: summary({ passed: false }), timeline, previous: undefined });
-  assert.ok(html.includes('You stopped this test early'));
+test('a stopped run says so at the top, and is neither Ready nor Not ready', () => {
+  for (const passed of [true, false]) {
+    const html = buildReport({ run: run({ status: 'stopped' }), summary: summary({ passed }), timeline, previous: undefined });
+    assert.ok(html.includes('You stopped this test early'));
+    assert.match(html, /<section class="verdict ok"><h2>Stopped early<\/h2>/);
+  }
+});
+
+test('with no limits the label does not claim a verdict', () => {
+  const none = { p95Ms: null, errorPct: null };
+  const html = buildReport({ run: run({ config: { ...run().config, thresholds: none } }), summary: summary({ failPct: 50, passed: true, checksPassPct: 50, limits: [] }), timeline, previous: undefined });
+  assert.match(html, /<section class="verdict ok"><h2>Results, no limits set<\/h2>/);
+  assert.ok(!html.includes('Not ready'));
 });
 
 test('limits section says what was allowed and the glossary explains a limit', () => {
@@ -167,7 +177,7 @@ test('with no limits set, nothing is judged against a limit', () => {
   assert.ok(!html.includes('Over your limit') && !html.includes('Within your limit'));
   assert.ok(html.includes('You set no limits for this run.'));
   assert.ok(!html.includes('met your limits'));
-  assert.match(html, /You set no limits, so nothing was judged\./);
+  assert.match(html, /Some requests failed\. You set no limits, so this was not judged\./);
   assert.ok(!html.includes('class="bad">33.00%'), 'a failure rate is not flagged without a limit');
 });
 

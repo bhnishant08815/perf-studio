@@ -25,6 +25,15 @@ test('limits are optional: null means no limit, each one independently', () => {
   assert.deepEqual(validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: null } }).config.thresholds, { p95Ms: null, errorPct: null });
 });
 
+test('a Breakpoint test needs at least one limit, or it never stops early', () => {
+  const bp = (thresholds) => ({ ...good(), testType: 'breakpoint', ...PRESETS.breakpoint, thresholds });
+  const none = validateConfig(bp({ p95Ms: null, errorPct: null }));
+  assert.equal(none.ok, false);
+  assert.ok(none.errors.some((e) => e.includes('Breakpoint')), JSON.stringify(none.errors));
+  assert.equal(validateConfig(bp({ p95Ms: null, errorPct: 5 })).ok, true);
+  assert.equal(validateConfig({ ...good(), thresholds: { p95Ms: null, errorPct: null } }).ok, true, 'other test types may have no limits');
+});
+
 test('valid config passes, trailing slash is stripped, defaults applied', () => {
   const r = validateConfig(good());
   assert.equal(r.ok, true);

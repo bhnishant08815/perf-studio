@@ -47,7 +47,8 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 .drop{display:block;border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-weight:600}
 .drop.over{border-color:var(--accent)}
 .drop input{display:block;margin:8px auto 0;font-size:13px;max-width:100%}
-.grp{margin-top:12px}.grp-head{display:flex;gap:8px;align-items:center;font-weight:600;font-size:14px;margin:0}
+.grp{margin-top:12px}.grp-head{display:flex;gap:8px;align-items:center;font-weight:600;font-size:14px;margin:0;list-style:none}
+.grp-head::before{content:"\25B8";width:1em;color:var(--muted,inherit)}.grp[open]>.grp-head::before{content:"\25BE"}
 .pick{display:grid;grid-template-columns:auto auto 1fr;gap:6px;align-items:start;font-weight:400;font-size:13px;margin:6px 0 0 4px}
 .pick small{grid-column:3;color:var(--mut);word-break:break-all}
 .pick.off{opacity:.55}
@@ -240,6 +241,7 @@ function readEndpoints() {
 const STORE = 'perf-studio-import';
 let imported = null; // result of importCollection
 let selected = new Set();
+const folded = new Set(); // names of groups the user collapsed
 
 const save = () => {
   try { localStorage.setItem(STORE, JSON.stringify({ imported, selected: [...selected] })); } catch { /* storage unavailable: fine */ }
@@ -266,6 +268,7 @@ function loadImport(result, keepSelection = []) {
 function resetImport() {
   imported = null;
   selected.clear();
+  folded.clear();
   try { localStorage.removeItem(STORE); } catch { /* storage unavailable: nothing to clear */ }
   for (const id of ['importInfo', 'selCount', 'importText', 'search']) { $(id).textContent = ''; $(id).value = ''; }
   $('importWarn').replaceChildren();
@@ -316,7 +319,11 @@ function renderPanel() {
       if (e.warnings.length) kids.push(el('span', { className: 'warn' }, `Check: ${e.warnings.join('; ')}`));
       return el('label', { className: `pick${e.selectable ? '' : ' off'}` }, ...kids);
     });
-    return el('div', { className: 'grp' }, el('p', { className: 'grp-head' }, head, `${group} (${items.length})`), ...rows);
+    // Searching opens every group so matches are never hidden; otherwise the user's folding is kept.
+    const searching = $('search').value.trim() !== '';
+    const box = el('details', { className: 'grp', open: searching || !folded.has(group) }, el('summary', { className: 'grp-head' }, head, `${group} (${items.length})`), ...rows);
+    box.addEventListener('toggle', () => { if (!searching) box.open ? folded.delete(group) : folded.add(group); });
+    return box;
   });
   $('groups').replaceChildren(...(blocks.length ? blocks : [el('p', { className: 'hint' }, 'No calls match your search.')]));
   showCount();
@@ -440,7 +447,7 @@ function follow(id) {
     $('stState').className = `pill ${run.status}`;
     $('stText').textContent = running ? `${fmtDuration(Math.round((Date.now() - Date.parse(run.startedAt)) / 1000))} so far` : STATUS_TEXT[run.status];
     // A finished run with results gets the same plain explanation as the report's top box.
-    const why = !running && run.summary ? explainRun({ cfg: run.config, summary: run.summary, stopped: run.status === 'stopped' }) : null;
+    const why = !running && run.summary && run.status !== 'error' ? explainRun({ cfg: run.config, summary: run.summary, stopped: run.status === 'stopped' }) : null;
     if (why) $('stText').textContent = why.headline;
     $('stWhy').replaceChildren(...(why ? [...why.found, ...why.next] : []).map((t) => el('li', {}, t)));
     $('stLog').textContent = run.logTail.join('\n');
