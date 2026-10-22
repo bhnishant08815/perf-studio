@@ -71,3 +71,32 @@ test('toConfigEndpoints keeps import order, skips non selectable, carries name a
     { method: 'GET', path: '/orders-archive', headers: {}, name: 'One', group: 'Catalog' },
   ]);
 });
+
+import { plannedPhase, latestMetrics } from '../lib/form.js';
+
+test('load test phases follow the ramp', () => {
+  const cfg = { testType: 'load', peakUsers: 10, rampUpS: 30, holdS: 60, rampDownS: 30 };
+  assert.equal(plannedPhase(cfg, 10).label, 'Building up');
+  assert.equal(plannedPhase(cfg, 50).label, 'Holding');
+  assert.equal(plannedPhase(cfg, 100).label, 'Winding down');
+  assert.deepEqual(plannedPhase(cfg, 200), { label: 'Finishing', stage: 3, stages: 3 });
+});
+
+test('smoke holds from the start', () => {
+  const cfg = { testType: 'smoke', peakUsers: 1, rampUpS: 0, holdS: 30, rampDownS: 0 };
+  assert.equal(plannedPhase(cfg, 5).label, 'Holding');
+});
+
+test('latest metrics skip a null average', () => {
+  const timeline = [
+    { t: 5, users: 2, rps: 1, failPct: 0, avgMs: 120, p95SoFarMs: 200 },
+    { t: 10, users: 4, rps: 2, failPct: 0, avgMs: null, p95SoFarMs: 210 },
+  ];
+  assert.deepEqual(latestMetrics(timeline), { users: 4, rps: 2, avgMs: 120, failPct: 0, p95SoFarMs: 210 });
+});
+
+test('latest metrics of nothing are null', () => {
+  const none = { users: null, rps: null, avgMs: null, failPct: null, p95SoFarMs: null };
+  assert.deepEqual(latestMetrics([]), none);
+  assert.deepEqual(latestMetrics(undefined), none);
+});
