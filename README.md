@@ -24,6 +24,7 @@ A local page to run load tests with k6 and watch them live in Grafana. No npm pa
 - "Things to check" lists what needs your attention: a `{{variable}}` with no value, a path value set to 1, a form data body or an auth type that was not imported.
 
 ## Reading the report
+- **In short (top box):** what happened in plain words, which limit was missed and why, and what to try next.
 - **Key numbers:** the verdict, speed and failures. Cards marked "Within / Over your limit" are judged against the limits you set.
 - **Over time:** people, requests per second, response time and failures every 5 seconds. Response time is the window average; Grafana shows the slow 1 in 20 per window.
 - **Per page or API:** which call is slowest, how each one answered (status codes), and a full table (p50, p90, p95, p99, slowest).

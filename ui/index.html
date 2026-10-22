@@ -151,6 +151,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 <section id="status" hidden aria-live="polite" style="margin-top:16px">
   <h2>Current test</h2>
   <p><span class="pill" id="stState"></span> <span id="stText"></span></p>
+  <ul id="stWhy" class="hint"></ul>
   <div id="stChart" class="grid" style="align-items:start"></div>
   <p id="stLinks"></p>
   <details><summary>Technical details</summary><pre id="stLog"></pre></details>
@@ -167,6 +168,7 @@ details{margin-top:10px}summary{cursor:pointer;font-weight:600}
 <script type="module">
 import { describeShape, filterEndpoints, fmtDuration, groupEndpoints, parseHeaders, presetFor, toConfigEndpoints } from '/lib/form.js';
 import { importCollection } from '/lib/importers.js';
+import { explainRun } from '/lib/explain.js';
 import { CHART_CSS, lineChart } from '/lib/charts.js';
 
 const $ = (id) => document.getElementById(id);
@@ -187,7 +189,7 @@ const TYPES = {
 const STATUS = {
   running: 'Running',
   passed: 'Passed',
-  failed: 'Missed your limits',
+  failed: 'Needs attention',
   stopped: 'Stopped',
   error: 'Could not finish',
 };
@@ -437,6 +439,10 @@ function follow(id) {
     $('stState').textContent = STATUS[run.status];
     $('stState').className = `pill ${run.status}`;
     $('stText').textContent = running ? `${fmtDuration(Math.round((Date.now() - Date.parse(run.startedAt)) / 1000))} so far` : STATUS_TEXT[run.status];
+    // A finished run with results gets the same plain explanation as the report's top box.
+    const why = !running && run.summary ? explainRun({ cfg: run.config, summary: run.summary, stopped: run.status === 'stopped' }) : null;
+    if (why) $('stText').textContent = why.headline;
+    $('stWhy').replaceChildren(...(why ? [...why.found, ...why.next] : []).map((t) => el('li', {}, t)));
     $('stLog').textContent = run.logTail.join('\n');
     const tl = run.timeline ?? [];
     // Built by our own chart code with every label escaped, so innerHTML is safe here.
@@ -462,7 +468,7 @@ async function loadHistory() {
   $('history').replaceChildren(...runs.map((r) => el('tr', {},
     el('td', {}, new Date(r.startedAt).toLocaleString()),
     el('td', {}, r.name),
-    el('td', { className: r.status }, STATUS[r.status]),
+    el('td', { className: r.status, title: r.status === 'failed' ? 'Open the report to see why' : '' }, STATUS[r.status]),
     el('td', {}, r.summary ? `${(r.summary.p95Ms / 1000).toFixed(2)} sec` : ''),
     el('td', {}, r.status === 'running' || r.status === 'error' || r.hasReport === false ? '' : el('a', { href: `/runs/${r.id}/report.html`, target: '_blank' }, 'Open')),
   )));

@@ -17,6 +17,7 @@ const STATIC = {
   '/lib/stages.js': ['lib/stages.js', 'text/javascript'],
   '/lib/importers.js': ['lib/importers.js', 'text/javascript'],
   '/lib/charts.js': ['lib/charts.js', 'text/javascript'],
+  '/lib/explain.js': ['lib/explain.js', 'text/javascript'],
 };
 
 export function createServer({ manager, port, root = import.meta.dirname }) {

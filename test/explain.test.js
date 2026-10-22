@@ -32,6 +32,16 @@ test('refused login, speed fine: says refused, names the call, says what to do',
   assert.equal(r.did, 'We sent up to 100 people at once to https://shop.test, visiting 1 page or API call.');
 });
 
+test('one person reads "1 person", and a smoke test is not told to run a smoke test', () => {
+  const r = explainRun({
+    cfg: cfg({ peakUsers: 1, testType: 'smoke' }),
+    summary: sum({ endpoints: [ep('Login', classes({ '4xx': 1745 }), { failPct: 100 })], limits: limits({ actual: 344, ok: true }, { actual: 100, ok: false }) }),
+  });
+  assert.equal(r.did, 'We sent up to 1 person at once to https://shop.test, visiting 1 page or API call.');
+  assert.ok(!r.next.some((l) => l.includes('Smoke test')));
+  assert.equal(r.next.length, 2);
+});
+
 test('one endpoint refused, another fine: names only the refused one', () => {
   const r = explainRun({
     cfg: cfg({ endpoints: [{}, {}] }),
