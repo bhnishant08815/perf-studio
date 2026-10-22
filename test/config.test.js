@@ -59,6 +59,15 @@ test('credentials: bad input is rejected with a message naming the field', () =>
   bad({ type: 'bearer', token: 't' }, 'either', { auth: { path: '/login', body: {}, tokenField: 't' } });
 });
 
+test('shownPath: kept when it is text, rejected when it is not', () => {
+  const ok = validateConfig({ ...good(), endpoints: [{ method: 'GET', path: '/a/42', shownPath: '/a/:id' }] });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.config.endpoints[0].shownPath, '/a/:id');
+  const bad = validateConfig({ ...good(), endpoints: [{ method: 'GET', path: '/a', shownPath: 5 }] });
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors.some((e) => e.includes('shownPath')), JSON.stringify(bad.errors));
+});
+
 test('a Breakpoint test needs at least one limit, or it never stops early', () => {
   const bp = (thresholds) => ({ ...good(), testType: 'breakpoint', ...PRESETS.breakpoint, thresholds });
   const none = validateConfig(bp({ p95Ms: null, errorPct: null }));

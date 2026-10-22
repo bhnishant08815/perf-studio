@@ -15,7 +15,8 @@ const CLASSES = ['2xx', '3xx', '4xx', '5xx', 'none'];
 const statusClass = new Counter('status_class');
 
 // Query values may hold API keys; names end up in the report and in Grafana, so mask them.
-const label = (e) => `${e.method} ${maskQuery(e.path)}`;
+// shownPath is the call as the user wrote it (gaps like :id unfilled), so typed values never reach names or the report.
+const label = (e) => `${e.method} ${maskQuery(e.shownPath ?? e.path)}`;
 const display = (e) => e.name || label(e);
 // Submetric selectors only ever use these generated ids, never user text (names may hold , : { } ").
 const epId = (i) => `e${i}`;
@@ -104,7 +105,7 @@ export function handleSummary(data) {
       id: epId(i),
       name: display(e),
       method: e.method,
-      path: e.path,
+      path: e.shownPath ?? e.path,
       requests,
       failPct: (f.rate ?? 0) * 100,
       avgMs: d.avg ?? 0,

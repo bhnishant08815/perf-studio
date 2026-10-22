@@ -299,7 +299,11 @@ function readEndpoints() {
 
 // The calls as they will run: gaps like :round_id replaced by the values the user typed.
 const values = {};
-const currentCalls = () => readEndpoints().map((e) => fillValues(e, values));
+// shownPath keeps the unfilled path for names and the report, so typed values (ids, tokens) are never printed.
+const currentCalls = () => readEndpoints().map((e) => {
+  const filled = fillValues(e, values);
+  return filled.path === e.path ? filled : { ...filled, shownPath: e.path };
+});
 
 // ---- imported endpoints side panel ----
 const STORE = 'perf-studio-import';
@@ -468,10 +472,17 @@ function useLoginCall(login, loginCall) {
 }
 
 function refreshSetup() {
-  const calls = readEndpoints();
+  let calls;
+  try {
+    calls = readEndpoints();
+  } catch (e) { // for example a header line typed halfway: say so instead of throwing on every keystroke
+    $('ready').replaceChildren(el('li', { className: 'stop' }, el('span', {}, e.message)));
+    $('run').disabled = true;
+    return;
+  }
   renderValues(allPlaceholders(calls));
   const loginCall = imported?.endpoints.find((e) => loginFromCall(e)) ?? null;
-  const issues = checkSetup({ baseUrl: $('baseUrl').value.trim(), endpoints: calls, values, credKind: $('credType').value, loginCall });
+  const issues = checkSetup({ baseUrl: $('baseUrl').value.trim(), endpoints: calls, values, credKind: $('credType').value, loginCall, knownBase: imported?.baseUrl });
   $('ready').replaceChildren(...issues.map((i) => {
     const li = el('li', { className: i.level }, el('span', {}, i.text));
     if (i.fix) {
@@ -595,9 +606,9 @@ function follow(id) {
       ? fig('Requests per second', lineChart({ title: 'Requests per second', series: [{ label: 'Requests per second', points: tl.map((p) => [p.t, p.rps]) }], formatY: (v) => v.toFixed(1), width: 420, height: 180 }))
         + fig('Average response time', lineChart({ title: 'Average response time', series: [{ label: 'Average', points: tl.map((p) => [p.t, p.avgMs]) }], formatY: (v) => `${Math.round(v)} ms`, width: 420, height: 180 }))
       : '';
+    $('stop').disabled = !running; // before refreshSetup, so nothing it does can leave a running test without a Stop button
     isRunning = running;
     refreshSetup(); // also sets the Run button: off while running or while a value is missing
-    $('stop').disabled = !running;
     const links = [];
     if (!running && run.hasReport !== false && run.status !== 'error') links.push(el('a', { href: `/runs/${id}/report.html`, target: '_blank' }, 'Open the plain language report'));
     if (run.config.grafana.enabled) links.push(el('a', { href: `${defaults.grafanaDashboardUrl}${id}`, target: '_blank' }, 'Open live graphs'));

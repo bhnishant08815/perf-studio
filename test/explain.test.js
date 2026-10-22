@@ -48,6 +48,16 @@ test('a website address that already holds a page is named as the cause', () => 
   assert.equal(plain.next[0], 'Check the address and the login details for Login, then run again.');
 });
 
+test('a real API base path is not blamed, and the shown path hides typed values', () => {
+  const summary = sum({ endpoints: [ep('Login', classes({ '4xx': 1745 }), { failPct: 100 })], limits: limits({ actual: 344, ok: true }, { actual: 100, ok: false }) });
+  const api = explainRun({ cfg: cfg({ baseUrl: 'https://api.x.com/v1', endpoints: [{ method: 'GET', path: '/users' }] }), summary });
+  assert.ok(!api.found.some((l) => l.includes('Your website address')));
+  assert.equal(api.next[0], 'Check the address and the login details for Login, then run again.');
+  const page = explainRun({ cfg: cfg({ baseUrl: 'https://x.com/login', endpoints: [{ method: 'GET', path: '/api/x/SECRET42', shownPath: '/api/x/:id' }] }), summary });
+  assert.equal(page.found[0], 'Your website address includes "/login", so calls went to https://x.com/login/api/x/:id.');
+  assert.ok(!JSON.stringify(page).includes('SECRET42'));
+});
+
 test('one person reads "1 person", and a smoke test is not told to run a smoke test', () => {
   const r = explainRun({
     cfg: cfg({ peakUsers: 1, testType: 'smoke' }),

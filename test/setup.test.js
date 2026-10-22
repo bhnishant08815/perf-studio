@@ -16,6 +16,11 @@ test('callTraits: reads, writes, destructive calls and gaps', () => {
   assert.deepEqual(callTraits({ method: 'DELETE', path: '/api/x/:id' }), { writes: true, risky: true, needs: ['id'] });
   assert.equal(callTraits(post('/api/wallet/topup')).risky, true);
   assert.equal(callTraits(get('/api/wallet')).risky, false);
+  for (const p of ['/api/hiring/ingestions/:slug/invite', '/api/auth/forgot-password', '/api/screening/:token/otp', '/api/auth/logout', '/api/auth/signup', '/api/platform/admin/vendor-bills', '/api/platform/admin/users/:user_id/platform-admin']) {
+    assert.equal(callTraits(post(p)).risky, true, p);
+  }
+  assert.equal(callTraits(get('/api/billing/payments')).risky, false, 'a read is never destructive, whatever its name');
+  assert.equal(callTraits(get('/api/org/invites')).risky, false);
   assert.deepEqual([callTraits(post('/api/auth/login')).writes, callTraits(post('/api/auth/login')).risky], [true, false]);
 });
 
@@ -37,9 +42,24 @@ test('base-path: warns when the address already holds a page, with a one click f
 });
 
 test('base-path: no warning for no path, a lone slash, a port, or an unparseable address', () => {
-  for (const baseUrl of ['https://x.com', 'https://x.com/', 'http://localhost:8000', 'http://localhost:8000/', 'not a url', '']) {
+  for (const baseUrl of ['https://x.com', 'https://x.com/', 'http://localhost:8000', 'http://localhost:8000/', 'not a url', '', 'localhost:8000', 'hire-uat.fly.dev:443/x', 'javascript:alert(1)', 'mailto:a@b.c']) {
     assert.equal(byId(check({ baseUrl }), 'base-path'), undefined, baseUrl);
   }
+});
+
+test('base-path: an address that came from the imported spec is not second guessed', () => {
+  const spec = 'https://api.x.com/v1';
+  assert.equal(byId(check({ baseUrl: spec, knownBase: spec, endpoints: [get('/users')] }), 'base-path'), undefined);
+  assert.ok(byId(check({ baseUrl: spec, knownBase: 'https://other.com', endpoints: [get('/users')] }), 'base-path'));
+  assert.ok(byId(check({ baseUrl: spec, endpoints: [get('/users')] }), 'base-path'), 'no known base: still warns');
+});
+
+test('logout: warns that a Logout call ends the shared sign in', () => {
+  const i = byId(check({ endpoints: [get('/health'), post('/api/auth/logout', { name: 'Logout' })] }), 'logout');
+  assert.equal(i.level, 'warn');
+  assert.equal(i.text, 'Logout ends your sign in: Logout. The login runs once and is shared by everyone in the test, so the calls after it would be refused.');
+  assert.equal(byId(check({ endpoints: [get('/health')] }), 'logout'), undefined);
+  assert.deepEqual(check({ endpoints: [post('/api/auth/logout')], loginCall: post('/login') }).map((x) => x.id), ['writes', 'risky', 'logout', 'login']);
 });
 
 test('fill: stops while a call still needs a value, names them once, and clears when filled', () => {
@@ -93,7 +113,7 @@ test('the real Hire collection: counts and the login call', { skip: existsSync(c
   const calls = importCollection(readFileSync(collection, 'utf8')).endpoints;
   const traits = calls.map(callTraits);
   assert.equal(traits.filter((t) => t.writes).length, 96);
-  assert.equal(traits.filter((t) => t.risky).length, 30);
+  assert.equal(traits.filter((t) => t.risky).length, 53);
   assert.equal(traits.filter((_, i) => calls[i].method === 'GET' && !traits[i].needs.length).length, 52);
   assert.equal(traits.filter((t) => t.needs.length).length, 80);
   const login = calls.map(loginFromCall).find(Boolean);

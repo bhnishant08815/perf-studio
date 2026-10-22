@@ -91,6 +91,15 @@ test('credentials reach the site: bearer, api key and basic', { skip }, async ()
   }
 });
 
+test('shownPath is what the summary and the names show; the request still goes to the real path', { skip }, async () => {
+  const r = await runK6({ endpoints: [{ method: 'GET', path: '/ok', shownPath: '/api/x/:id' }] });
+  assert.equal(r.code, 0, r.out);
+  assert.equal(r.summary.failPct, 0, 'the call reached /ok');
+  assert.equal(r.summary.endpoints[0].path, '/api/x/:id');
+  assert.equal(r.summary.endpoints[0].name, 'GET /api/x/:id');
+  assert.ok(!JSON.stringify(r.summary).includes('/ok'));
+});
+
 test('wrong credentials are refused by the site, so the run fails', { skip }, async () => {
   const r = await runK6({ endpoints: [{ method: 'GET', path: '/secure' }], credentials: { type: 'bearer', token: 'nope' } });
   assert.equal(r.code, 99, r.out);
