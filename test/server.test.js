@@ -104,3 +104,36 @@ test('defaults expose presets and limits', async () => {
   assert.equal(d.presets.load.peakUsers, 20);
   assert.equal(d.limits.maxUsers, 500);
 });
+
+// Own server per test so each can inject a stub grafanaProbe.
+const withProbe = async (grafanaProbe, host, fn) => {
+  const s = createServer({ manager: stub, port: 0, grafanaProbe });
+  await new Promise((r) => s.listen(0, '127.0.0.1', r));
+  const p = s.address().port;
+  try {
+    return await new Promise((resolve, reject) => {
+      http.get({ host: '127.0.0.1', port: p, path: '/api/grafana-status', headers: { host: host ?? `127.0.0.1:${p}` } }, (res) => {
+        let raw = '';
+        res.on('data', (c) => (raw += c));
+        res.on('end', () => resolve({ status: res.statusCode, text: raw }));
+      }).on('error', reject);
+    }).then(fn);
+  } finally {
+    await new Promise((r) => (s.closeAllConnections(), s.close(r)));
+  }
+};
+
+test('grafana status reports available', () =>
+  withProbe(async () => true, undefined, (r) => {
+    assert.equal(r.status, 200);
+    assert.deepEqual(JSON.parse(r.text), { available: true });
+  }));
+
+test('grafana status reports unavailable when the probe throws', () =>
+  withProbe(async () => { throw new Error('down'); }, undefined, (r) => {
+    assert.equal(r.status, 200);
+    assert.deepEqual(JSON.parse(r.text), { available: false });
+  }));
+
+test('grafana status rejects a foreign host', () =>
+  withProbe(async () => true, 'evil.example', (r) => assert.equal(r.status, 403)));

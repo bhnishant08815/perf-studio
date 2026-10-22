@@ -24,7 +24,10 @@ const STATIC = {
   '/lib/theme.js': ['lib/theme.js', 'text/javascript'],
 };
 
-export function createServer({ manager, port, root = import.meta.dirname }) {
+// Fixed URL on purpose: nothing from a request may reach it.
+const probeGrafana = () => fetch('http://localhost:3000/api/health', { signal: AbortSignal.timeout(1500) }).then((res) => res.ok, () => false);
+
+export function createServer({ manager, port, root = import.meta.dirname, grafanaProbe = probeGrafana }) {
   const server = http.createServer((req, res) => {
     const send = (code, body, type = 'application/json') => {
       res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
@@ -47,6 +50,13 @@ export function createServer({ manager, port, root = import.meta.dirname }) {
 
       if (req.method === 'GET' && path === '/api/defaults') {
         return send(200, { limits: LIMITS, presets: PRESETS, testTypes: TEST_TYPES, grafanaDashboardUrl: 'http://localhost:3000/d/perf-studio/perf-studio?var-testid=' });
+      }
+      if (req.method === 'GET' && path === '/api/grafana-status') {
+        let available = false;
+        try {
+          available = (await grafanaProbe()) === true;
+        } catch {}
+        return send(200, { available });
       }
       if (req.method === 'GET' && path === '/api/runs') return send(200, manager.list());
 
